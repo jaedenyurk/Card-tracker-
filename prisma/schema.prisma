@@ -1,0 +1,71 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// A single sports card (or sealed item) that has been bought for the business.
+// Money fields are stored in cents (Int) to avoid floating point rounding issues.
+model Card {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Identity
+  player      String
+  sport       String
+  year        String?
+  setName     String?
+  cardNumber  String?
+  parallel    String? // e.g. "Prizm Silver", "Refractor"
+  gradingCo   String? // e.g. "PSA", "BGS", "SGC", or null if raw/ungraded
+  grade       String? // e.g. "10", "9.5"
+  imageUrl    String?
+  notes       String?
+
+  // Acquisition
+  purchaseDate  DateTime
+  purchasePrice Int      // cents
+  purchasePlatform String? // eBay, COMC, local show, etc.
+
+  // Disposition
+  status      CardStatus @default(HELD)
+  soldDate    DateTime?
+  soldPrice   Int?       // cents
+  soldPlatform String?
+
+  // Optional current estimated market value for held cards (for unrealized ROI)
+  marketValue Int?
+
+  expenses    Expense[]
+
+  @@index([status])
+  @@index([sport])
+}
+
+enum CardStatus {
+  HELD
+  SOLD
+}
+
+// Business expenses. May optionally be tied to a specific card (e.g. grading fee,
+// shipping cost for that sale) or be a general operating expense (subscriptions,
+// supplies, booth fees, mileage, etc.)
+model Expense {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+
+  date        DateTime
+  category    String   // Grading, Shipping, Supplies, Fees, Travel, Software, Other
+  description String
+  amount      Int      // cents
+
+  cardId      String?
+  card        Card?    @relation(fields: [cardId], references: [id], onDelete: SetNull)
+
+  @@index([date])
+  @@index([category])
+}
