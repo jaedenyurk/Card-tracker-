@@ -4,6 +4,9 @@ import type {
   PortfolioSummary,
   MonthlyPoint,
   YearlyPoint,
+  LotLike,
+  LotSaleLike,
+  LotsSummary,
 } from "./types";
 
 function toDate(d: Date | string): Date {
@@ -235,6 +238,56 @@ export function rankByROI(
 
   withROI.sort((a, b) => (direction === "best" ? b.roi - a.roi : a.roi - b.roi));
   return withROI.slice(0, limit);
+}
+
+/** Sales recorded against a specific lot. */
+export function lotSalesFor(lotId: string, sales: LotSaleLike[]): LotSaleLike[] {
+  return sales.filter((s) => s.lotId === lotId);
+}
+
+/** Total number of cards sold out of a lot so far. */
+export function lotSoldCount(lot: LotLike, sales: LotSaleLike[]): number {
+  return lotSalesFor(lot.id, sales).reduce((sum, s) => sum + s.quantity, 0);
+}
+
+/** Cards from a lot that haven't been sold yet. */
+export function lotRemainingCards(lot: LotLike, sales: LotSaleLike[]): number {
+  return lot.totalCards - lotSoldCount(lot, sales);
+}
+
+/** Average cost per card in a lot (cents). */
+export function lotCostPerCard(lot: LotLike): number {
+  return lot.totalCards > 0 ? lot.totalCost / lot.totalCards : 0;
+}
+
+/** Sum of manually-entered profit across every sale recorded against a lot. */
+export function lotRealizedProfit(lot: LotLike, sales: LotSaleLike[]): number {
+  return lotSalesFor(lot.id, sales).reduce((sum, s) => sum + s.profit, 0);
+}
+
+/** Profit realized so far relative to the full amount paid for the lot. */
+export function lotROI(lot: LotLike, sales: LotSaleLike[]): number | null {
+  if (lot.totalCost === 0) return null;
+  return (lotRealizedProfit(lot, sales) / lot.totalCost) * 100;
+}
+
+/** Rolls up every lot buy into one summary for the lots dashboard section. */
+export function computeLotsSummary(lots: LotLike[], sales: LotSaleLike[]): LotsSummary {
+  const totalCardsBought = lots.reduce((sum, l) => sum + l.totalCards, 0);
+  const totalCardsSold = sales.reduce((sum, s) => sum + s.quantity, 0);
+  const totalInvested = lots.reduce((sum, l) => sum + l.totalCost, 0);
+  const totalRealizedProfit = sales.reduce((sum, s) => sum + s.profit, 0);
+
+  return {
+    lotCount: lots.length,
+    totalCardsBought,
+    totalCardsSold,
+    totalCardsRemaining: totalCardsBought - totalCardsSold,
+    totalInvested,
+    totalRealizedProfit,
+    overallROI: totalInvested !== 0 ? (totalRealizedProfit / totalInvested) * 100 : null,
+    percentSold: totalCardsBought !== 0 ? (totalCardsSold / totalCardsBought) * 100 : null,
+  };
 }
 
 export function formatCents(cents: number): string {

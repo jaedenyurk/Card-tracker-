@@ -43,6 +43,31 @@ export interface PortfolioSummary {
   allTimeCapitalDeployed: number; // cogs + inventoryCostValue (total ever spent acquiring + prepping cards)
 }
 
+// Shape shared by the Prisma Lot model and any plain object used in tests.
+export interface LotLike {
+  id: string;
+  totalCards: number;
+  totalCost: number; // cents
+}
+
+export interface LotSaleLike {
+  id: string;
+  lotId: string;
+  quantity: number;
+  profit: number; // cents
+}
+
+export interface LotsSummary {
+  lotCount: number;
+  totalCardsBought: number;
+  totalCardsSold: number;
+  totalCardsRemaining: number;
+  totalInvested: number; // cents
+  totalRealizedProfit: number; // cents
+  overallROI: number | null; // totalRealizedProfit / totalInvested * 100
+  percentSold: number | null; // totalCardsSold / totalCardsBought * 100
+}
+
 export interface MonthlyPoint {
   key: string; // "2026-01"
   label: string; // "Jan 2026"

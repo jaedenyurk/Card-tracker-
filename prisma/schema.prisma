@@ -51,6 +51,44 @@ enum CardStatus {
   SOLD
 }
 
+// A bulk purchase of multiple cards bought together for one total price (e.g. a
+// large lot from an auction or box break). Individual cards inside a lot aren't
+// tracked one by one — instead you log sales against the lot as pieces of it sell.
+model Lot {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  name         String
+  source       String? // eBay, local show, etc.
+  purchaseDate DateTime
+  totalCards   Int
+  totalCost    Int      // cents
+  notes        String?
+
+  sales       LotSale[]
+
+  @@index([purchaseDate])
+}
+
+// A single sale transaction against a Lot: some number of cards sold together,
+// with the profit for that transaction entered manually (rather than tracking
+// revenue/cost per individual card in the lot).
+model LotSale {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  lotId     String
+  lot       Lot      @relation(fields: [lotId], references: [id], onDelete: Cascade)
+
+  saleDate  DateTime
+  quantity  Int
+  profit    Int      // cents
+  notes     String?
+
+  @@index([lotId])
+}
+
 // Business expenses. May optionally be tied to a specific card (e.g. grading fee,
 // shipping cost for that sale) or be a general operating expense (subscriptions,
 // supplies, booth fees, mileage, etc.)

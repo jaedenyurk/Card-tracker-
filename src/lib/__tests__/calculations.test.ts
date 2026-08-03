@@ -10,8 +10,14 @@ import {
   monthlySeries,
   yearlySeries,
   rankByROI,
+  lotSoldCount,
+  lotRemainingCards,
+  lotCostPerCard,
+  lotRealizedProfit,
+  lotROI,
+  computeLotsSummary,
 } from "../calculations";
-import type { CardLike, ExpenseLike } from "../types";
+import type { CardLike, ExpenseLike, LotLike, LotSaleLike } from "../types";
 
 function card(overrides: Partial<CardLike> & { id: string }): CardLike {
   return {
@@ -173,4 +179,80 @@ test("rankByROI excludes cards with no ROI available (held, no market value)", (
   const cards: CardLike[] = [card({ id: "unset", purchasePrice: 1000 })];
   const ranked = rankByROI(cards, [], "best", 5);
   assert.equal(ranked.length, 0);
+});
+
+function lot(overrides: Partial<LotLike> & { id: string }): LotLike {
+  return { totalCards: 10, totalCost: 10000, ...overrides };
+}
+
+function lotSale(overrides: Partial<LotSaleLike> & { id: string; lotId: string }): LotSaleLike {
+  return { quantity: 1, profit: 0, ...overrides };
+}
+
+test("lotSoldCount / lotRemainingCards only count sales for that lot", () => {
+  const l = lot({ id: "l1", totalCards: 20 });
+  const sales: LotSaleLike[] = [
+    lotSale({ id: "s1", lotId: "l1", quantity: 3 }),
+    lotSale({ id: "s2", lotId: "l1", quantity: 2 }),
+    lotSale({ id: "s3", lotId: "other", quantity: 100 }),
+  ];
+  assert.equal(lotSoldCount(l, sales), 5);
+  assert.equal(lotRemainingCards(l, sales), 15);
+});
+
+test("lotCostPerCard divides total cost across the whole lot", () => {
+  const l = lot({ id: "l1", totalCards: 25, totalCost: 5000 });
+  assert.equal(lotCostPerCard(l), 200);
+});
+
+test("lotCostPerCard is 0 for a lot with no cards (avoids divide by zero)", () => {
+  const l = lot({ id: "l1", totalCards: 0, totalCost: 5000 });
+  assert.equal(lotCostPerCard(l), 0);
+});
+
+test("lotRealizedProfit sums manually-entered profit for that lot's sales", () => {
+  const l = lot({ id: "l1" });
+  const sales: LotSaleLike[] = [
+    lotSale({ id: "s1", lotId: "l1", quantity: 2, profit: 1500 }),
+    lotSale({ id: "s2", lotId: "l1", quantity: 1, profit: -200 }), // a loss on one sale
+    lotSale({ id: "s3", lotId: "other", quantity: 5, profit: 9999 }),
+  ];
+  assert.equal(lotRealizedProfit(l, sales), 1300);
+});
+
+test("lotROI is profit relative to the full amount paid for the lot", () => {
+  const l = lot({ id: "l1", totalCost: 10000 });
+  const sales: LotSaleLike[] = [lotSale({ id: "s1", lotId: "l1", quantity: 4, profit: 2500 })];
+  assert.equal(lotROI(l, sales), 25);
+});
+
+test("lotROI is null when the lot had no cost", () => {
+  const l = lot({ id: "l1", totalCost: 0 });
+  assert.equal(lotROI(l, []), null);
+});
+
+test("computeLotsSummary rolls up cards sold, invested, profit, and ROI across lots", () => {
+  const lots: LotLike[] = [
+    lot({ id: "l1", totalCards: 10, totalCost: 10000 }),
+    lot({ id: "l2", totalCards: 20, totalCost: 30000 }),
+  ];
+  const sales: LotSaleLike[] = [
+    lotSale({ id: "s1", lotId: "l1", quantity: 4, profit: 1000 }),
+    lotSale({ id: "s2", lotId: "l2", quantity: 5, profit: -500 }),
+  ];
+  const summary = computeLotsSummary(lots, sales);
+  assert.equal(summary.lotCount, 2);
+  assert.equal(summary.totalCardsBought, 30);
+  assert.equal(summary.totalCardsSold, 9);
+  assert.equal(summary.totalCardsRemaining, 21);
+  assert.equal(summary.totalInvested, 40000);
+  assert.equal(summary.totalRealizedProfit, 500);
+  assert.equal(summary.overallROI, (500 / 40000) * 100);
+  assert.equal(summary.percentSold, (9 / 30) * 100);
+});
+
+test("computeLotsSummary handles no lots without dividing by zero", () => {
+  const summary = computeLotsSummary([], []);
+  assert.equal(summary.overallROI, null);
+  assert.equal(summary.percentSold, null);
 });
