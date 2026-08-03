@@ -135,6 +135,46 @@ export function computePortfolioSummary(
   };
 }
 
+export type PeriodKey = "MONTH" | "YTD" | "ALL";
+
+// Same UTC convention as monthKey below: a date is bucketed by its UTC
+// calendar month/year so results don't shift with the server's local timezone.
+function inPeriod(date: Date | string, period: PeriodKey, now: Date): boolean {
+  if (period === "ALL") return true;
+  const d = toDate(date);
+  if (period === "MONTH") {
+    return d.getUTCFullYear() === now.getUTCFullYear() && d.getUTCMonth() === now.getUTCMonth();
+  }
+  return d.getUTCFullYear() === now.getUTCFullYear(); // YTD
+}
+
+/**
+ * Same shape as computePortfolioSummary, but revenue/COGS/operating-expense
+ * figures are scoped to a period (current calendar month, year-to-date, or
+ * all-time) based on when a card sold or a general expense was incurred.
+ * Held-card figures (inventory cost/value, unrealized P&L) always reflect
+ * current holdings, and Overall ROI stays a lifetime figure, since neither
+ * belongs to a single period the way a sale or expense does.
+ */
+export function computePortfolioSummaryForPeriod(
+  cards: CardLike[],
+  expenses: ExpenseLike[],
+  period: PeriodKey,
+  now: Date = new Date()
+): PortfolioSummary {
+  const periodCards = cards.filter(
+    (c) => c.status === "HELD" || (c.status === "SOLD" && c.soldDate != null && inPeriod(c.soldDate, period, now))
+  );
+  // Keep every card-linked expense (its cost basis applies whenever the card sold),
+  // but only count general expenses incurred within the period.
+  const periodExpenses = expenses.filter((e) => e.cardId != null || inPeriod(e.date, period, now));
+
+  const periodSummary = computePortfolioSummary(periodCards, periodExpenses);
+  if (period === "ALL") return periodSummary;
+
+  return { ...periodSummary, overallROI: computePortfolioSummary(cards, expenses).overallROI };
+}
+
 // Dates coming from <input type="date"> (and from Prisma's DateTime for
 // date-only values) parse as UTC midnight. We bucket consistently in UTC
 // everywhere so a card sold on "2026-01-01" always lands in January 2026,

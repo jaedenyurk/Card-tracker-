@@ -7,6 +7,7 @@ import {
   cardUnrealizedProfit,
   cardUnrealizedROI,
   computePortfolioSummary,
+  computePortfolioSummaryForPeriod,
   monthlySeries,
   yearlySeries,
   rankByROI,
@@ -136,6 +137,70 @@ test("computePortfolioSummary handles an empty portfolio without dividing by zer
   assert.equal(summary.realizedROI, null);
   assert.equal(summary.overallROI, null);
   assert.equal(summary.inventoryMarketValue, null);
+});
+
+test("computePortfolioSummaryForPeriod: MONTH only counts cards sold / expenses incurred that month", () => {
+  const now = new Date("2026-03-15T00:00:00Z");
+  const cards: CardLike[] = [
+    card({ id: "inMonth", purchasePrice: 5000, status: "SOLD", soldPrice: 12000, soldDate: "2026-03-02" }),
+    card({ id: "otherMonth", purchasePrice: 8000, status: "SOLD", soldPrice: 20000, soldDate: "2026-01-10" }),
+    card({ id: "held", purchasePrice: 3000, marketValue: 4000 }), // held cards always count
+  ];
+  const expenses: ExpenseLike[] = [
+    expense({ id: "genInMonth", cardId: null, amount: 1000, date: "2026-03-05" }),
+    expense({ id: "genOtherMonth", cardId: null, amount: 5000, date: "2026-01-05" }),
+    // Linked to the out-of-period card, but should still count toward its cost basis
+    // if that card were in period; here it's just proof linked expenses aren't date-filtered.
+    expense({ id: "linked", cardId: "inMonth", amount: 500, date: "2025-12-01" }),
+  ];
+
+  const summary = computePortfolioSummaryForPeriod(cards, expenses, "MONTH", now);
+
+  assert.equal(summary.soldCount, 1);
+  assert.equal(summary.totalRevenue, 12000);
+  // cogs = purchasePrice(5000) + linked expense(500), regardless of the expense's own date
+  assert.equal(summary.cogs, 5500);
+  assert.equal(summary.generalExpenses, 1000);
+  assert.equal(summary.netPnL, 12000 - (5500 + 1000));
+  // held card always included
+  assert.equal(summary.heldCount, 1);
+  assert.equal(summary.inventoryCostValue, 3000);
+});
+
+test("computePortfolioSummaryForPeriod: YTD includes the whole current year", () => {
+  const now = new Date("2026-06-01T00:00:00Z");
+  const cards: CardLike[] = [
+    card({ id: "thisYear", purchasePrice: 1000, status: "SOLD", soldPrice: 2000, soldDate: "2026-01-05" }),
+    card({ id: "lastYear", purchasePrice: 1000, status: "SOLD", soldPrice: 9000, soldDate: "2025-12-31" }),
+  ];
+  const summary = computePortfolioSummaryForPeriod(cards, [], "YTD", now);
+  assert.equal(summary.soldCount, 1);
+  assert.equal(summary.totalRevenue, 2000);
+});
+
+test("computePortfolioSummaryForPeriod: ALL matches computePortfolioSummary exactly", () => {
+  const cards: CardLike[] = [
+    card({ id: "c1", purchasePrice: 1000, status: "SOLD", soldPrice: 2000, soldDate: "2020-01-01" }),
+    card({ id: "c2", purchasePrice: 500, marketValue: 800 }),
+  ];
+  const expenses: ExpenseLike[] = [expense({ id: "e1", cardId: null, amount: 100, date: "2020-01-01" })];
+  assert.deepEqual(
+    computePortfolioSummaryForPeriod(cards, expenses, "ALL"),
+    computePortfolioSummary(cards, expenses)
+  );
+});
+
+test("computePortfolioSummaryForPeriod: Overall ROI is always the all-time figure, even when filtered", () => {
+  const now = new Date("2026-03-15T00:00:00Z");
+  const cards: CardLike[] = [
+    card({ id: "inMonth", purchasePrice: 1000, status: "SOLD", soldPrice: 1500, soldDate: "2026-03-02" }),
+    card({ id: "otherMonth", purchasePrice: 1000, status: "SOLD", soldPrice: 5000, soldDate: "2025-01-10" }),
+  ];
+  const allTime = computePortfolioSummary(cards, []);
+  const monthOnly = computePortfolioSummaryForPeriod(cards, [], "MONTH", now);
+  assert.equal(monthOnly.overallROI, allTime.overallROI);
+  // Sanity check the two really do differ in scope (otherwise this test wouldn't prove anything)
+  assert.notEqual(monthOnly.totalRevenue, allTime.totalRevenue);
 });
 
 test("monthlySeries fills gaps between the first and last active month", () => {

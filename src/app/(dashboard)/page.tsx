@@ -1,16 +1,16 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import {
-  computePortfolioSummary,
-  formatCents,
-  formatPercent,
+  computePortfolioSummaryForPeriod,
   monthlySeries,
   yearlySeries,
+  type PeriodKey,
 } from "@/lib/calculations";
 import { toCardRow, type CardRow } from "@/lib/rows";
-import { KpiCard } from "@/components/KpiCard";
+import { DashboardSummary } from "@/components/DashboardSummary";
 import { RevenueChart } from "@/components/RevenueChart";
 import { TopMovers } from "@/components/TopMovers";
+import type { PortfolioSummary } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -20,7 +20,12 @@ export default async function DashboardPage() {
     prisma.expense.findMany(),
   ]);
 
-  const summary = computePortfolioSummary(cards, expenses);
+  const now = new Date();
+  const summaries: Record<PeriodKey, PortfolioSummary> = {
+    MONTH: computePortfolioSummaryForPeriod(cards, expenses, "MONTH", now),
+    YTD: computePortfolioSummaryForPeriod(cards, expenses, "YTD", now),
+    ALL: computePortfolioSummaryForPeriod(cards, expenses, "ALL", now),
+  };
   const monthly = monthlySeries(cards, expenses);
   const yearly = yearlySeries(cards, expenses);
 
@@ -44,40 +49,7 @@ export default async function DashboardPage() {
         </Link>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
-        <KpiCard label="Total Revenue" value={formatCents(summary.totalRevenue)} sublabel={`${summary.soldCount} sold`} />
-        <KpiCard label="Total Expenses" value={formatCents(summary.totalExpenses)} sublabel="COGS + operating" />
-        <KpiCard
-          label="Net P&L"
-          value={formatCents(summary.netPnL)}
-          tone={summary.netPnL >= 0 ? "gain" : "loss"}
-          sublabel="All time"
-        />
-        <KpiCard
-          label="Realized ROI"
-          value={formatPercent(summary.realizedROI)}
-          tone={summary.realizedROI != null && summary.realizedROI >= 0 ? "gain" : summary.realizedROI != null ? "loss" : "neutral"}
-          sublabel="On sold cards"
-        />
-        <KpiCard label="Inventory (Cost)" value={formatCents(summary.inventoryCostValue)} sublabel={`${summary.heldCount} held`} />
-        <KpiCard
-          label="Inventory (Est. Value)"
-          value={summary.inventoryMarketValue != null ? formatCents(summary.inventoryMarketValue) : "—"}
-          sublabel="Held cards"
-        />
-        <KpiCard
-          label="Unrealized P&L"
-          value={summary.unrealizedProfit != null ? formatCents(summary.unrealizedProfit) : "—"}
-          tone={summary.unrealizedProfit == null ? "neutral" : summary.unrealizedProfit >= 0 ? "gain" : "loss"}
-          sublabel="Held cards vs. cost"
-        />
-        <KpiCard
-          label="Overall ROI"
-          value={formatPercent(summary.overallROI)}
-          tone={summary.overallROI != null && summary.overallROI >= 0 ? "gain" : summary.overallROI != null ? "loss" : "neutral"}
-          sublabel="Realized + unrealized"
-        />
-      </div>
+      <DashboardSummary summaries={summaries} />
 
       <RevenueChart monthly={monthly} yearly={yearly} />
 
