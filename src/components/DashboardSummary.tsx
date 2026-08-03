@@ -19,7 +19,7 @@ const PERIOD_SUBLABEL: Record<PeriodKey, string> = {
 };
 
 export function DashboardSummary({ summaries }: { summaries: Record<PeriodKey, PortfolioSummary> }) {
-  const [period, setPeriod] = useState<PeriodKey>("ALL");
+  const [period, setPeriod] = useState<PeriodKey>("MONTH");
   const summary = summaries[period];
 
   return (
