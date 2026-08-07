@@ -54,7 +54,7 @@ export function InventoryTable({ rows }: { rows: CardRow[] }) {
 
   return (
     <div className="rounded-xl border border-white/5 bg-base-900 shadow-panel">
-      <div className="flex items-center justify-between border-b border-white/5 px-5 py-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/5 px-5 py-4">
         <h2 className="text-sm font-semibold text-white">
           Inventory <span className="text-muted font-normal">({sorted.length})</span>
         </h2>

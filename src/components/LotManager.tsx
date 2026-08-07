@@ -112,7 +112,7 @@ export function LotManager({ lots, summary }: { lots: LotRow[]; summary: LotsSum
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-base font-semibold text-white">Large Lot Buys</h2>
           <p className="text-sm text-muted">Bulk purchases tracked as a pool of cards, sold off over time</p>
@@ -160,7 +160,7 @@ export function LotManager({ lots, summary }: { lots: LotRow[]; summary: LotsSum
               placeholder="2023 Prizm Football mixed lot"
             />
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <label className={labelClass}>Purchase Date *</label>
               <input
@@ -327,7 +327,7 @@ export function LotManager({ lots, summary }: { lots: LotRow[]; summary: LotsSum
                     onSubmit={(e) => handleAddSale(e, lot.id)}
                     className="mt-4 space-y-3 rounded-lg border border-white/10 bg-base-850 p-4"
                   >
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                       <div>
                         <label className={labelClass}>Sale Date *</label>
                         <input

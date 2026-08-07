@@ -25,3 +25,14 @@ body {
 input[type="date"]::-webkit-calendar-picker-indicator {
   filter: invert(0.6);
 }
+
+/* iOS Safari auto-zooms the page when focusing a text input smaller than
+   16px. Bump form field text up to 16px on small screens to prevent that,
+   while keeping the tighter 14px (text-sm) sizing on larger screens. */
+@media (max-width: 767px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}

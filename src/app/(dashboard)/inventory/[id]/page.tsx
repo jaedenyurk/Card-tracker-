@@ -23,7 +23,7 @@ export default async function CardDetailPage({ params }: { params: { id: string 
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <Link href="/inventory" className="text-xs text-muted hover:text-white">
             ← Back to Inventory
@@ -35,14 +35,22 @@ export default async function CardDetailPage({ params }: { params: { id: string 
             {card.sport} · {gradingLabel}
           </p>
         </div>
-        <span
-          className={
-            "rounded-full px-3 py-1 text-xs font-medium " +
-            (card.status === "SOLD" ? "bg-gain/15 text-gain" : "bg-accent/15 text-accent")
-          }
-        >
-          {card.status === "SOLD" ? "Sold" : "Held"}
-        </span>
+        <div className="flex items-center gap-3">
+          <span
+            className={
+              "rounded-full px-3 py-1 text-xs font-medium " +
+              (card.status === "SOLD" ? "bg-gain/15 text-gain" : "bg-accent/15 text-accent")
+            }
+          >
+            {card.status === "SOLD" ? "Sold" : "Held"}
+          </span>
+          <Link
+            href={`/inventory/${card.id}/edit`}
+            className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-white/5"
+          >
+            Edit
+          </Link>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">

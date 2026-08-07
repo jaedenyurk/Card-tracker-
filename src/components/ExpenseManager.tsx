@@ -75,7 +75,7 @@ export function ExpenseManager({
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap gap-1 rounded-lg border border-white/10 bg-base-850 p-0.5 text-xs">
           {["ALL", ...CATEGORIES].map((c) => (
             <button
@@ -100,7 +100,7 @@ export function ExpenseManager({
 
       {adding && (
         <form onSubmit={handleAdd} className="space-y-4 rounded-xl border border-white/5 bg-base-900 p-5 shadow-panel">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <label className={labelClass}>Date *</label>
               <input
@@ -134,7 +134,7 @@ export function ExpenseManager({
               placeholder="Monthly pricing app subscription"
             />
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <label className={labelClass}>Amount ($) *</label>
               <input

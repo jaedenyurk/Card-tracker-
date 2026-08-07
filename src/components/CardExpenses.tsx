@@ -67,7 +67,7 @@ export function CardExpenses({ cardId, expenses }: { cardId: string; expenses: E
 
       {adding && (
         <form onSubmit={handleAdd} className="mb-4 space-y-3 rounded-lg border border-white/10 p-4">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
               <label className={labelClass}>Date</label>
               <input

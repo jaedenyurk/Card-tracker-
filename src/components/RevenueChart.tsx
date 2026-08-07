@@ -49,7 +49,7 @@ export function RevenueChart({
 
   return (
     <div className="rounded-xl border border-white/5 bg-base-900 p-5 shadow-panel">
-      <div className="mb-4 flex items-center justify-between">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-sm font-semibold text-white">Revenue vs. Expenses</h2>
         <div className="flex rounded-lg border border-white/10 bg-base-850 p-0.5 text-xs">
           {(["monthly", "yearly"] as const).map((v) => (
