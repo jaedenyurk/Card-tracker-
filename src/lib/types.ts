@@ -19,6 +19,24 @@ export interface ExpenseLike {
   cardId: string | null;
 }
 
+// Shape shared by the Prisma Revenue model and any plain object used in tests.
+export interface RevenueLike {
+  id: string;
+  amount: number; // cents
+  date: Date | string;
+  category: string;
+}
+
+// The dashboard's headline cash-flow figures: driven entirely by the Revenue
+// and Expenses pages, independent of card sale/cost-basis data.
+export interface CashFlowSummary {
+  totalRevenue: number; // cents, sum of Revenue entries in the period
+  totalExpenses: number; // cents, sum of ALL Expense entries in the period
+  netPnL: number; // totalRevenue - totalExpenses
+  revenueCount: number;
+  expenseCount: number;
+}
+
 export interface PortfolioSummary {
   cardCount: number;
   heldCount: number;

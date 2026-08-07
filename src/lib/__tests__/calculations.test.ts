@@ -8,6 +8,7 @@ import {
   cardUnrealizedROI,
   computePortfolioSummary,
   computePortfolioSummaryForPeriod,
+  computeCashFlowSummaryForPeriod,
   monthlySeries,
   yearlySeries,
   rankByROI,
@@ -18,7 +19,7 @@ import {
   lotROI,
   computeLotsSummary,
 } from "../calculations";
-import type { CardLike, ExpenseLike, LotLike, LotSaleLike } from "../types";
+import type { CardLike, ExpenseLike, RevenueLike, LotLike, LotSaleLike } from "../types";
 
 function card(overrides: Partial<CardLike> & { id: string }): CardLike {
   return {
@@ -38,6 +39,15 @@ function expense(overrides: Partial<ExpenseLike> & { id: string }): ExpenseLike 
     date: "2026-01-01",
     category: "Other",
     cardId: null,
+    ...overrides,
+  };
+}
+
+function revenue(overrides: Partial<RevenueLike> & { id: string }): RevenueLike {
+  return {
+    amount: 0,
+    date: "2026-01-01",
+    category: "Card Sale",
     ...overrides,
   };
 }
@@ -204,11 +214,12 @@ test("computePortfolioSummaryForPeriod: Overall ROI is always the all-time figur
 });
 
 test("monthlySeries fills gaps between the first and last active month", () => {
-  const cards: CardLike[] = [
-    card({ id: "c1", purchasePrice: 1000, status: "SOLD", soldPrice: 2000, soldDate: "2026-01-10" }),
-    card({ id: "c2", purchasePrice: 1000, status: "SOLD", soldPrice: 2000, soldDate: "2026-03-10" }),
+  const revenues: RevenueLike[] = [
+    revenue({ id: "r1", amount: 2000, date: "2026-01-10" }),
+    revenue({ id: "r2", amount: 2000, date: "2026-03-10" }),
   ];
-  const series = monthlySeries(cards, []);
+  const expenses: ExpenseLike[] = [expense({ id: "e1", amount: 1000, date: "2026-01-10" })];
+  const series = monthlySeries(revenues, expenses);
   assert.equal(series.length, 3); // Jan, Feb (empty), Mar
   assert.deepEqual(series.map((p) => p.key), ["2026-01", "2026-02", "2026-03"]);
   assert.equal(series[1].revenue, 0);
@@ -218,16 +229,57 @@ test("monthlySeries fills gaps between the first and last active month", () => {
 });
 
 test("yearlySeries rolls monthly data up correctly", () => {
-  const cards: CardLike[] = [
-    card({ id: "c1", purchasePrice: 1000, status: "SOLD", soldPrice: 5000, soldDate: "2025-06-01" }),
-    card({ id: "c2", purchasePrice: 2000, status: "SOLD", soldPrice: 3000, soldDate: "2026-01-01" }),
+  const revenues: RevenueLike[] = [
+    revenue({ id: "r1", amount: 5000, date: "2025-06-01" }),
+    revenue({ id: "r2", amount: 3000, date: "2026-01-01" }),
   ];
-  const years = yearlySeries(cards, []);
+  const expenses: ExpenseLike[] = [
+    expense({ id: "e1", amount: 1000, date: "2025-06-01" }),
+    expense({ id: "e2", amount: 2000, date: "2026-01-01" }),
+  ];
+  const years = yearlySeries(revenues, expenses);
   assert.deepEqual(years.map((y) => y.key), ["2025", "2026"]);
   assert.equal(years[0].revenue, 5000);
   assert.equal(years[0].profit, 4000);
   assert.equal(years[1].revenue, 3000);
   assert.equal(years[1].profit, 1000);
+});
+
+test("computeCashFlowSummaryForPeriod sums revenue/expenses entirely from the Revenue and Expenses pages", () => {
+  const now = new Date("2026-03-15T00:00:00Z");
+  const revenues: RevenueLike[] = [
+    revenue({ id: "r1", amount: 5000, date: "2026-03-02" }), // in month
+    revenue({ id: "r2", amount: 9000, date: "2026-01-01" }), // out of month
+  ];
+  const expenses: ExpenseLike[] = [
+    expense({ id: "e1", amount: 1000, date: "2026-03-05", cardId: null }), // in month, general
+    expense({ id: "e2", amount: 2000, date: "2026-03-06", cardId: "someCard" }), // in month, linked — still counts
+    expense({ id: "e3", amount: 7000, date: "2026-01-05" }), // out of month
+  ];
+
+  const summary = computeCashFlowSummaryForPeriod(revenues, expenses, "MONTH", now);
+  assert.equal(summary.totalRevenue, 5000);
+  assert.equal(summary.totalExpenses, 3000);
+  assert.equal(summary.netPnL, 2000);
+  assert.equal(summary.revenueCount, 1);
+  assert.equal(summary.expenseCount, 2);
+});
+
+test("computeCashFlowSummaryForPeriod ALL includes everything regardless of date", () => {
+  const revenues: RevenueLike[] = [revenue({ id: "r1", amount: 100, date: "2020-01-01" })];
+  const expenses: ExpenseLike[] = [expense({ id: "e1", amount: 40, date: "2020-01-01" })];
+  const summary = computeCashFlowSummaryForPeriod(revenues, expenses, "ALL");
+  assert.equal(summary.totalRevenue, 100);
+  assert.equal(summary.totalExpenses, 40);
+  assert.equal(summary.netPnL, 60);
+});
+
+test("computeCashFlowSummaryForPeriod is unaffected by card sale data (no cards involved at all)", () => {
+  // Sanity check on the type signature itself: nothing here references CardLike.
+  const revenues: RevenueLike[] = [revenue({ id: "r1", amount: 500, date: "2026-01-01" })];
+  const summary = computeCashFlowSummaryForPeriod(revenues, [], "ALL");
+  assert.equal(summary.totalRevenue, 500);
+  assert.equal(summary.totalExpenses, 0);
 });
 
 test("rankByROI sorts sold cards by ROI descending for 'best'", () => {

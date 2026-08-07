@@ -2,6 +2,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import {
   computePortfolioSummaryForPeriod,
+  computeCashFlowSummaryForPeriod,
   monthlySeries,
   yearlySeries,
   type PeriodKey,
@@ -10,24 +11,34 @@ import { toCardRow, type CardRow } from "@/lib/rows";
 import { DashboardSummary } from "@/components/DashboardSummary";
 import { RevenueChart } from "@/components/RevenueChart";
 import { TopMovers } from "@/components/TopMovers";
-import type { PortfolioSummary } from "@/lib/types";
+import type { PortfolioSummary, CashFlowSummary } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
-  const [cards, expenses] = await Promise.all([
+  const [cards, expenses, revenue] = await Promise.all([
     prisma.card.findMany(),
     prisma.expense.findMany(),
+    prisma.revenue.findMany(),
   ]);
 
   const now = new Date();
-  const summaries: Record<PeriodKey, PortfolioSummary> = {
-    MONTH: computePortfolioSummaryForPeriod(cards, expenses, "MONTH", now),
-    YTD: computePortfolioSummaryForPeriod(cards, expenses, "YTD", now),
-    ALL: computePortfolioSummaryForPeriod(cards, expenses, "ALL", now),
-  };
-  const monthly = monthlySeries(cards, expenses);
-  const yearly = yearlySeries(cards, expenses);
+  const periods: PeriodKey[] = ["MONTH", "YTD", "ALL"];
+
+  // Total Revenue / Total Expenses / Net P&L come entirely from the Revenue
+  // and Expenses pages — never from a card's soldPrice or cost basis.
+  const cashSummaries = Object.fromEntries(
+    periods.map((p) => [p, computeCashFlowSummaryForPeriod(revenue, expenses, p, now)])
+  ) as Record<PeriodKey, CashFlowSummary>;
+
+  // Everything else (Realized ROI, inventory value, unrealized P&L, Overall ROI)
+  // still comes from cards/cost-basis, same as before.
+  const portfolioSummaries = Object.fromEntries(
+    periods.map((p) => [p, computePortfolioSummaryForPeriod(cards, expenses, p, now)])
+  ) as Record<PeriodKey, PortfolioSummary>;
+
+  const monthly = monthlySeries(revenue, expenses);
+  const yearly = yearlySeries(revenue, expenses);
 
   const rows = cards.map((c) => toCardRow(c, expenses));
   const withROI = rows.filter((r): r is CardRow & { roi: number } => r.roi != null);
@@ -49,7 +60,7 @@ export default async function DashboardPage() {
         </Link>
       </div>
 
-      <DashboardSummary summaries={summaries} />
+      <DashboardSummary cashSummaries={cashSummaries} portfolioSummaries={portfolioSummaries} />
 
       <RevenueChart monthly={monthly} yearly={yearly} />
 

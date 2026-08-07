@@ -41,6 +41,7 @@ model Card {
   marketValue Int?
 
   expenses    Expense[]
+  revenues    Revenue[]
 
   @@index([status])
   @@index([sport])
@@ -98,6 +99,26 @@ model Expense {
 
   date        DateTime
   category    String   // Grading, Shipping, Supplies, Fees, Travel, Software, Other
+  description String
+  amount      Int      // cents
+
+  cardId      String?
+  card        Card?    @relation(fields: [cardId], references: [id], onDelete: SetNull)
+
+  @@index([date])
+  @@index([category])
+}
+
+// Money actually taken in — the dashboard's Total Revenue and Net P&L are driven
+// entirely from this table (and Expense), independent of a card's soldPrice.
+// The optional card link is just a reference tag, it doesn't feed any inventory
+// calculation (cost basis, realized profit, etc. still key off Card/Expense only).
+model Revenue {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+
+  date        DateTime
+  category    String   // Card Sale, Lot Sale, Shipping, Other
   description String
   amount      Int      // cents
 

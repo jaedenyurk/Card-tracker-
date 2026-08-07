@@ -1,6 +1,8 @@
 import type {
   CardLike,
   ExpenseLike,
+  RevenueLike,
+  CashFlowSummary,
   PortfolioSummary,
   MonthlyPoint,
   YearlyPoint,
@@ -175,6 +177,32 @@ export function computePortfolioSummaryForPeriod(
   return { ...periodSummary, overallROI: computePortfolioSummary(cards, expenses).overallROI };
 }
 
+/**
+ * The dashboard's headline Total Revenue / Total Expenses / Net P&L figures.
+ * Deliberately independent of card sale data: revenue is whatever's logged on
+ * the Revenue page, expenses are every entry logged on the Expenses page
+ * (linked to a card or not), both scoped to the given period by their own date.
+ */
+export function computeCashFlowSummaryForPeriod(
+  revenues: RevenueLike[],
+  expenses: ExpenseLike[],
+  period: PeriodKey,
+  now: Date = new Date()
+): CashFlowSummary {
+  const periodRevenues = revenues.filter((r) => inPeriod(r.date, period, now));
+  const periodExpenses = expenses.filter((e) => inPeriod(e.date, period, now));
+  const totalRevenue = periodRevenues.reduce((sum, r) => sum + r.amount, 0);
+  const totalExpenses = periodExpenses.reduce((sum, e) => sum + e.amount, 0);
+
+  return {
+    totalRevenue,
+    totalExpenses,
+    netPnL: totalRevenue - totalExpenses,
+    revenueCount: periodRevenues.length,
+    expenseCount: periodExpenses.length,
+  };
+}
+
 // Dates coming from <input type="date"> (and from Prisma's DateTime for
 // date-only values) parse as UTC midnight. We bucket consistently in UTC
 // everywhere so a card sold on "2026-01-01" always lands in January 2026,
@@ -191,9 +219,10 @@ const MONTH_LABELS = [
 /**
  * Builds a chronological series of {revenue, expenses, profit} per calendar
  * month, covering every month from the earliest recorded activity to the
- * latest (so gaps show as zero rather than being skipped).
+ * latest (so gaps show as zero rather than being skipped). Sourced entirely
+ * from the Revenue and Expenses pages, same as computeCashFlowSummaryForPeriod.
  */
-export function monthlySeries(cards: CardLike[], expenses: ExpenseLike[]): MonthlyPoint[] {
+export function monthlySeries(revenues: RevenueLike[], expenses: ExpenseLike[]): MonthlyPoint[] {
   const buckets = new Map<string, { revenue: number; expenses: number }>();
 
   const touch = (key: string) => {
@@ -201,19 +230,11 @@ export function monthlySeries(cards: CardLike[], expenses: ExpenseLike[]): Month
     return buckets.get(key)!;
   };
 
-  for (const c of cards) {
-    if (c.status === "SOLD" && c.soldDate) {
-      const key = monthKey(toDate(c.soldDate));
-      const bucket = touch(key);
-      bucket.revenue += c.soldPrice ?? 0;
-      bucket.expenses += cardCostBasis(c, expenses);
-    }
+  for (const r of revenues) {
+    touch(monthKey(toDate(r.date))).revenue += r.amount;
   }
   for (const e of expenses) {
-    if (e.cardId == null) {
-      const key = monthKey(toDate(e.date));
-      touch(key).expenses += e.amount;
-    }
+    touch(monthKey(toDate(e.date))).expenses += e.amount;
   }
 
   if (buckets.size === 0) return [];
@@ -245,8 +266,8 @@ export function monthlySeries(cards: CardLike[], expenses: ExpenseLike[]): Month
 }
 
 /** Same idea as monthlySeries but rolled up to whole calendar years. */
-export function yearlySeries(cards: CardLike[], expenses: ExpenseLike[]): YearlyPoint[] {
-  const monthly = monthlySeries(cards, expenses);
+export function yearlySeries(revenues: RevenueLike[], expenses: ExpenseLike[]): YearlyPoint[] {
+  const monthly = monthlySeries(revenues, expenses);
   const buckets = new Map<string, { revenue: number; expenses: number }>();
   for (const p of monthly) {
     const year = p.key.split("-")[0];
