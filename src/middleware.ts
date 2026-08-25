@@ -5,12 +5,17 @@ import { SESSION_COOKIE, computeSessionToken } from "@/lib/auth";
 // Gate every page and API route behind a single shared password, since this
 // app holds real business financial data and will be reachable at a public
 // Vercel URL. /login and its API are the only unauthenticated routes.
+//
+// /api/mcp is also excluded from the cookie check: it's called by external
+// MCP clients (e.g. Claude), which can't hold a browser session cookie, so it
+// enforces its own separate bearer-token auth (see api/mcp/route.ts) instead.
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
   const isPublic =
     pathname.startsWith("/login") ||
     pathname.startsWith("/api/auth/login") ||
+    pathname.startsWith("/api/mcp") ||
     pathname.startsWith("/_next") ||
     pathname.startsWith("/favicon");
 
