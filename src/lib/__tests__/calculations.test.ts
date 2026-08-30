@@ -15,6 +15,7 @@ import {
   lotSoldCount,
   lotRemainingCards,
   lotCostPerCard,
+  lotSaleProfit,
   lotRealizedProfit,
   lotROI,
   computeLotsSummary,
@@ -282,6 +283,28 @@ test("computeCashFlowSummaryForPeriod is unaffected by card sale data (no cards 
   assert.equal(summary.totalExpenses, 0);
 });
 
+test("computeCashFlowSummaryForPeriod excludes Owner Contribution from Total Revenue and Net P&L", () => {
+  const revenues: RevenueLike[] = [
+    revenue({ id: "r1", amount: 5000, category: "Card Sale", date: "2026-01-01" }),
+    revenue({ id: "r2", amount: 20000, category: "Owner Contribution", date: "2026-01-01" }),
+  ];
+  const summary = computeCashFlowSummaryForPeriod(revenues, [], "ALL");
+  assert.equal(summary.totalRevenue, 5000);
+  assert.equal(summary.netPnL, 5000);
+  // Only the true-revenue entry counts toward revenueCount too.
+  assert.equal(summary.revenueCount, 1);
+});
+
+test("monthlySeries excludes Owner Contribution from the revenue series", () => {
+  const revenues: RevenueLike[] = [
+    revenue({ id: "r1", amount: 1000, category: "Card Sale", date: "2026-02-01" }),
+    revenue({ id: "r2", amount: 50000, category: "Owner Contribution", date: "2026-02-01" }),
+  ];
+  const series = monthlySeries(revenues, []);
+  assert.equal(series.length, 1);
+  assert.equal(series[0].revenue, 1000);
+});
+
 test("rankByROI sorts sold cards by ROI descending for 'best'", () => {
   const cards: CardLike[] = [
     card({ id: "low", purchasePrice: 10000, status: "SOLD", soldPrice: 11000, soldDate: "2026-01-01" }), // 10%
@@ -325,6 +348,26 @@ test("lotCostPerCard divides total cost across the whole lot", () => {
 test("lotCostPerCard is 0 for a lot with no cards (avoids divide by zero)", () => {
   const l = lot({ id: "l1", totalCards: 0, totalCost: 5000 });
   assert.equal(lotCostPerCard(l), 0);
+});
+
+test("lotSaleProfit subtracts this sale's share of the lot's cost from the sale price", () => {
+  // 10 cards for $10000 -> $1000/card
+  const l = lot({ id: "l1", totalCards: 10, totalCost: 10000 });
+  // Sold 3 cards for $4500: cost basis = 3 * 1000 = 3000, profit = 4500 - 3000 = 1500
+  assert.equal(lotSaleProfit(l, 3, 4500), 1500);
+});
+
+test("lotSaleProfit can be negative when the sale price doesn't cover cost", () => {
+  const l = lot({ id: "l1", totalCards: 10, totalCost: 10000 }); // $1000/card
+  // Sold 2 cards for $1500: cost basis = 2000, profit = 1500 - 2000 = -500 (a loss)
+  assert.equal(lotSaleProfit(l, 2, 1500), -500);
+});
+
+test("lotSaleProfit rounds a fractional cost-per-card to the nearest cent", () => {
+  // 3 cards for $1000 -> $333.33/card
+  const l = lot({ id: "l1", totalCards: 3, totalCost: 1000 });
+  // 1 card sold for $500: cost basis rounds to 333, profit = 500 - 333 = 167
+  assert.equal(lotSaleProfit(l, 1, 500), 167);
 });
 
 test("lotRealizedProfit sums manually-entered profit for that lot's sales", () => {

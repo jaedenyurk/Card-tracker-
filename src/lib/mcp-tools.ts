@@ -6,6 +6,8 @@ import {
   computeCashFlowSummaryForPeriod,
   computePortfolioSummaryForPeriod,
   rankByROI,
+  lotCostPerCard,
+  lotSaleProfit,
   type PeriodKey,
 } from "./calculations";
 import { toCardRow } from "./rows";
@@ -13,8 +15,8 @@ import { toLotRow } from "./lots";
 
 const SPORTS = ["Baseball", "Basketball", "Football", "Hockey", "Soccer", "Golf", "Other"] as const;
 const GRADING_COMPANIES = ["PSA", "BGS", "SGC", "CGC", "TAG"] as const;
-const EXPENSE_CATEGORIES = ["Grading", "Shipping", "Supplies", "Fees", "Travel", "Software", "Other"] as const;
-const REVENUE_CATEGORIES = ["Card Sale", "Lot Sale", "Shipping", "Other"] as const;
+const EXPENSE_CATEGORIES = ["Grading", "Shipping", "Supplies", "Inventory", "Fees", "Travel", "Software", "Other"] as const;
+const REVENUE_CATEGORIES = ["Card Sale", "Lot Sale", "Shipping", "Owner Contribution", "Other"] as const;
 
 function round1(n: number): number {
   return Math.round(n * 10) / 10;
@@ -157,7 +159,8 @@ export function registerTools(server: McpServer): void {
     "add_revenue",
     {
       title: "Add Revenue",
-      description: "Log money taken in. This feeds Total Revenue and Net P&L on the dashboard — nothing else does.",
+      description:
+        "Log money taken in. This feeds Total Revenue and Net P&L on the dashboard — nothing else does. Exception: 'Owner Contribution' is tracked here but excluded from Total Revenue/Net P&L since it's the owner's own money, not business revenue.",
       inputSchema: z.object({
         date: z.string().describe("YYYY-MM-DD"),
         category: z.enum(REVENUE_CATEGORIES),
@@ -212,27 +215,36 @@ export function registerTools(server: McpServer): void {
     {
       title: "Log Lot Sale",
       description:
-        "Record some number of cards sold out of a lot, with the profit for that sale. Call list_lots first to find the lot's id and how many cards remain.",
+        "Record some number of cards sold out of a lot for a sale price. Profit is computed automatically as sale price minus this sale's share of the lot's cost (quantity × cost per card) — never the raw sale price. Call list_lots first to find the lot's id, cost per card, and how many cards remain.",
       inputSchema: z.object({
         lotId: z.string(),
         saleDate: z.string().describe("YYYY-MM-DD"),
         quantity: z.number().int().positive().describe("Number of cards sold in this transaction"),
-        profit: z.number().describe("Profit in dollars for this sale (negative for a loss)"),
+        salePrice: z.number().nonnegative().describe("What these cards actually sold for, in dollars"),
         notes: z.string().optional(),
       }),
     },
-    async ({ lotId, saleDate, quantity, profit, notes }) => {
+    async ({ lotId, saleDate, quantity, salePrice, notes }) => {
       const lot = await prisma.lot.findUnique({ where: { id: lotId }, include: { sales: true } });
       if (!lot) return errorResult(`No lot found with id ${lotId}.`);
       const alreadySold = lot.sales.reduce((sum, s) => sum + s.quantity, 0);
       const remaining = lot.totalCards - alreadySold;
       if (quantity > remaining) return errorResult(`Only ${remaining} card(s) remain in "${lot.name}".`);
-      const cents = dollarsToCents(profit);
-      if (cents == null) return errorResult("profit is required.");
+      const salePriceCents = dollarsToCents(salePrice);
+      if (salePriceCents == null) return errorResult("salePrice is required.");
+      const costBasisCents = Math.round(quantity * lotCostPerCard(lot));
+      const profitCents = lotSaleProfit(lot, quantity, salePriceCents);
       await prisma.lotSale.create({
-        data: { lotId, saleDate: new Date(saleDate), quantity, profit: cents, notes: notes || null },
+        data: { lotId, saleDate: new Date(saleDate), quantity, salePrice: salePriceCents, profit: profitCents, notes: notes || null },
       });
-      return json({ lot: lot.name, quantitySold: quantity, profit: centsToDollars(cents), remainingAfter: remaining - quantity });
+      return json({
+        lot: lot.name,
+        quantitySold: quantity,
+        salePrice: centsToDollars(salePriceCents),
+        costBasis: centsToDollars(costBasisCents),
+        profit: centsToDollars(profitCents),
+        remainingAfter: remaining - quantity,
+      });
     }
   );
 

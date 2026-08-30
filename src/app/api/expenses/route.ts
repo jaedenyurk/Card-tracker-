@@ -12,7 +12,7 @@ export async function GET() {
   return NextResponse.json(expenses);
 }
 
-const CATEGORIES = ["Grading", "Shipping", "Supplies", "Fees", "Travel", "Software", "Other"];
+const CATEGORIES = ["Grading", "Shipping", "Supplies", "Inventory", "Fees", "Travel", "Software", "Other"];
 
 export async function POST(req: Request) {
   const body = await req.json().catch(() => null);

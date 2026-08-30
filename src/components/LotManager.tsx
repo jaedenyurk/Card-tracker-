@@ -12,7 +12,16 @@ const inputClass =
   "w-full rounded-lg border border-white/10 bg-base-850 px-3 py-2 text-sm text-white placeholder:text-muted focus:border-accent focus:outline-none";
 const labelClass = "mb-1.5 block text-xs font-medium text-muted";
 
-const emptyLotForm = {
+type LotFormValues = {
+  name: string;
+  source: string;
+  purchaseDate: string;
+  totalCards: string;
+  totalCost: string;
+  notes: string;
+};
+
+const emptyLotForm: LotFormValues = {
   name: "",
   source: "",
   purchaseDate: new Date().toISOString().slice(0, 10),
@@ -21,12 +30,180 @@ const emptyLotForm = {
   notes: "",
 };
 
-const emptySaleForm = {
+type SaleFormValues = {
+  saleDate: string;
+  quantity: string;
+  salePrice: string;
+  notes: string;
+};
+
+const emptySaleForm: SaleFormValues = {
   saleDate: new Date().toISOString().slice(0, 10),
   quantity: "",
-  profit: "",
+  salePrice: "",
   notes: "",
 };
+
+function LotFields({
+  form,
+  setForm,
+}: {
+  form: LotFormValues;
+  setForm: (updater: (f: LotFormValues) => LotFormValues) => void;
+}) {
+  return (
+    <>
+      <div>
+        <label className={labelClass}>Lot Name *</label>
+        <input
+          required
+          className={inputClass}
+          value={form.name}
+          onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+          placeholder="2023 Prizm Football mixed lot"
+        />
+      </div>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div>
+          <label className={labelClass}>Purchase Date *</label>
+          <input
+            required
+            type="date"
+            className={inputClass}
+            value={form.purchaseDate}
+            onChange={(e) => setForm((f) => ({ ...f, purchaseDate: e.target.value }))}
+          />
+        </div>
+        <div>
+          <label className={labelClass}>Source</label>
+          <input
+            className={inputClass}
+            value={form.source}
+            onChange={(e) => setForm((f) => ({ ...f, source: e.target.value }))}
+            placeholder="eBay, local show..."
+          />
+        </div>
+        <div>
+          <label className={labelClass}>Total Cards *</label>
+          <input
+            required
+            type="number"
+            step="1"
+            min="1"
+            className={inputClass}
+            value={form.totalCards}
+            onChange={(e) => setForm((f) => ({ ...f, totalCards: e.target.value }))}
+            placeholder="50"
+          />
+        </div>
+        <div>
+          <label className={labelClass}>Total Price ($) *</label>
+          <input
+            required
+            type="number"
+            step="0.01"
+            min="0"
+            className={inputClass}
+            value={form.totalCost}
+            onChange={(e) => setForm((f) => ({ ...f, totalCost: e.target.value }))}
+            placeholder="0.00"
+          />
+        </div>
+      </div>
+      <div>
+        <label className={labelClass}>Notes</label>
+        <textarea
+          className={inputClass}
+          rows={2}
+          value={form.notes}
+          onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
+          placeholder="Optional"
+        />
+      </div>
+    </>
+  );
+}
+
+function SaleFields({
+  form,
+  setForm,
+  maxQuantity,
+  costPerCard,
+}: {
+  form: SaleFormValues;
+  setForm: (updater: (f: SaleFormValues) => SaleFormValues) => void;
+  maxQuantity: number;
+  costPerCard: number; // cents
+}) {
+  const quantity = Number.parseInt(form.quantity, 10);
+  const salePrice = Number.parseFloat(form.salePrice);
+  const hasPreview = Number.isFinite(quantity) && quantity > 0 && Number.isFinite(salePrice);
+  const costBasisCents = hasPreview ? Math.round(quantity * costPerCard) : 0;
+  const profitCents = hasPreview ? Math.round(salePrice * 100) - costBasisCents : 0;
+
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div>
+          <label className={labelClass}>Sale Date *</label>
+          <input
+            required
+            type="date"
+            className={inputClass}
+            value={form.saleDate}
+            onChange={(e) => setForm((f) => ({ ...f, saleDate: e.target.value }))}
+          />
+        </div>
+        <div>
+          <label className={labelClass}>Cards Sold *</label>
+          <input
+            required
+            type="number"
+            step="1"
+            min="1"
+            max={maxQuantity}
+            className={inputClass}
+            value={form.quantity}
+            onChange={(e) => setForm((f) => ({ ...f, quantity: e.target.value }))}
+            placeholder={`Up to ${maxQuantity}`}
+          />
+        </div>
+        <div>
+          <label className={labelClass}>Sale Price ($) *</label>
+          <input
+            required
+            type="number"
+            step="0.01"
+            min="0"
+            className={inputClass}
+            value={form.salePrice}
+            onChange={(e) => setForm((f) => ({ ...f, salePrice: e.target.value }))}
+            placeholder="0.00"
+          />
+        </div>
+        <div>
+          <label className={labelClass}>Notes</label>
+          <input
+            className={inputClass}
+            value={form.notes}
+            onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
+            placeholder="Optional"
+          />
+        </div>
+      </div>
+      <p className="text-xs text-muted">
+        {hasPreview ? (
+          <>
+            Cost basis for {quantity} card{quantity === 1 ? "" : "s"}: {formatCents(costBasisCents)} → profit{" "}
+            <span className={profitCents >= 0 ? "text-gain" : "text-loss"}>{formatCents(profitCents)}</span>
+          </>
+        ) : (
+          `Profit is computed automatically: sale price minus ${formatCents(Math.round(costPerCard))}/card cost.`
+        )}
+      </p>
+    </div>
+  );
+}
 
 export function LotManager({ lots, summary }: { lots: LotRow[]; summary: LotsSummary }) {
   const router = useRouter();
@@ -34,12 +211,22 @@ export function LotManager({ lots, summary }: { lots: LotRow[]; summary: LotsSum
   const [addingLot, setAddingLot] = useState(false);
   const [lotLoading, setLotLoading] = useState(false);
   const [lotError, setLotError] = useState<string | null>(null);
-  const [lotForm, setLotForm] = useState(emptyLotForm);
+  const [lotForm, setLotForm] = useState<LotFormValues>(emptyLotForm);
+
+  const [editingLotId, setEditingLotId] = useState<string | null>(null);
+  const [lotEditForm, setLotEditForm] = useState<LotFormValues>(emptyLotForm);
+  const [lotEditLoading, setLotEditLoading] = useState(false);
+  const [lotEditError, setLotEditError] = useState<string | null>(null);
 
   const [activeSaleLotId, setActiveSaleLotId] = useState<string | null>(null);
-  const [saleForm, setSaleForm] = useState(emptySaleForm);
+  const [saleForm, setSaleForm] = useState<SaleFormValues>(emptySaleForm);
   const [saleLoading, setSaleLoading] = useState(false);
   const [saleError, setSaleError] = useState<string | null>(null);
+
+  const [editingSaleId, setEditingSaleId] = useState<string | null>(null);
+  const [saleEditForm, setSaleEditForm] = useState<SaleFormValues>(emptySaleForm);
+  const [saleEditLoading, setSaleEditLoading] = useState(false);
+  const [saleEditError, setSaleEditError] = useState<string | null>(null);
 
   const [historyOpen, setHistoryOpen] = useState<Set<string>>(new Set());
 
@@ -78,6 +265,38 @@ export function LotManager({ lots, summary }: { lots: LotRow[]; summary: LotsSum
     if (res.ok) router.refresh();
   }
 
+  function openEditLot(lot: LotRow) {
+    setEditingLotId(lot.id);
+    setLotEditError(null);
+    setLotEditForm({
+      name: lot.name,
+      source: lot.source ?? "",
+      purchaseDate: lot.purchaseDate.slice(0, 10),
+      totalCards: lot.totalCards.toString(),
+      totalCost: (lot.totalCost / 100).toString(),
+      notes: lot.notes ?? "",
+    });
+  }
+
+  async function handleSaveLotEdit(e: React.FormEvent, lotId: string) {
+    e.preventDefault();
+    setLotEditLoading(true);
+    setLotEditError(null);
+    const res = await fetch(`/api/lots/${lotId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(lotEditForm),
+    });
+    setLotEditLoading(false);
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setLotEditError(data.error ?? "Failed to save changes");
+      return;
+    }
+    setEditingLotId(null);
+    router.refresh();
+  }
+
   function openSaleForm(lotId: string) {
     setActiveSaleLotId(lotId);
     setSaleForm(emptySaleForm);
@@ -108,6 +327,39 @@ export function LotManager({ lots, summary }: { lots: LotRow[]; summary: LotsSum
     if (!confirm("Remove this sale? The cards will go back to remaining.")) return;
     const res = await fetch(`/api/lots/${lotId}/sales/${saleId}`, { method: "DELETE" });
     if (res.ok) router.refresh();
+  }
+
+  function openEditSale(sale: LotRow["sales"][number], lot: LotRow) {
+    setEditingSaleId(sale.id);
+    setSaleEditError(null);
+    // Legacy sales logged before salePrice existed only have a stored profit —
+    // back into an implied sale price so the form still shows a sensible value.
+    const impliedSalePrice = sale.salePrice ?? sale.profit + Math.round(sale.quantity * lot.costPerCard);
+    setSaleEditForm({
+      saleDate: sale.saleDate.slice(0, 10),
+      quantity: sale.quantity.toString(),
+      salePrice: (impliedSalePrice / 100).toString(),
+      notes: sale.notes ?? "",
+    });
+  }
+
+  async function handleSaveSaleEdit(e: React.FormEvent, lotId: string, saleId: string) {
+    e.preventDefault();
+    setSaleEditLoading(true);
+    setSaleEditError(null);
+    const res = await fetch(`/api/lots/${lotId}/sales/${saleId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(saleEditForm),
+    });
+    setSaleEditLoading(false);
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setSaleEditError(data.error ?? "Failed to save changes");
+      return;
+    }
+    setEditingSaleId(null);
+    router.refresh();
   }
 
   return (
@@ -150,73 +402,7 @@ export function LotManager({ lots, summary }: { lots: LotRow[]; summary: LotsSum
 
       {addingLot && (
         <form onSubmit={handleAddLot} className="space-y-4 rounded-xl border border-white/5 bg-base-900 p-5 shadow-panel">
-          <div>
-            <label className={labelClass}>Lot Name *</label>
-            <input
-              required
-              className={inputClass}
-              value={lotForm.name}
-              onChange={(e) => setLotForm((f) => ({ ...f, name: e.target.value }))}
-              placeholder="2023 Prizm Football mixed lot"
-            />
-          </div>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div>
-              <label className={labelClass}>Purchase Date *</label>
-              <input
-                required
-                type="date"
-                className={inputClass}
-                value={lotForm.purchaseDate}
-                onChange={(e) => setLotForm((f) => ({ ...f, purchaseDate: e.target.value }))}
-              />
-            </div>
-            <div>
-              <label className={labelClass}>Source</label>
-              <input
-                className={inputClass}
-                value={lotForm.source}
-                onChange={(e) => setLotForm((f) => ({ ...f, source: e.target.value }))}
-                placeholder="eBay, local show..."
-              />
-            </div>
-            <div>
-              <label className={labelClass}>Total Cards *</label>
-              <input
-                required
-                type="number"
-                step="1"
-                min="1"
-                className={inputClass}
-                value={lotForm.totalCards}
-                onChange={(e) => setLotForm((f) => ({ ...f, totalCards: e.target.value }))}
-                placeholder="50"
-              />
-            </div>
-            <div>
-              <label className={labelClass}>Total Price ($) *</label>
-              <input
-                required
-                type="number"
-                step="0.01"
-                min="0"
-                className={inputClass}
-                value={lotForm.totalCost}
-                onChange={(e) => setLotForm((f) => ({ ...f, totalCost: e.target.value }))}
-                placeholder="0.00"
-              />
-            </div>
-          </div>
-          <div>
-            <label className={labelClass}>Notes</label>
-            <textarea
-              className={inputClass}
-              rows={2}
-              value={lotForm.notes}
-              onChange={(e) => setLotForm((f) => ({ ...f, notes: e.target.value }))}
-              placeholder="Optional"
-            />
-          </div>
+          <LotFields form={lotForm} setForm={setLotForm} />
           {lotError && <p className="text-sm text-loss">{lotError}</p>}
           <button
             type="submit"
@@ -238,6 +424,33 @@ export function LotManager({ lots, summary }: { lots: LotRow[]; summary: LotsSum
             const percentSold = lot.totalCards > 0 ? (lot.soldCount / lot.totalCards) * 100 : 0;
             const soldOut = lot.remaining <= 0;
             const historyShown = historyOpen.has(lot.id);
+
+            if (editingLotId === lot.id) {
+              return (
+                <div key={lot.id} className="rounded-xl border border-white/5 bg-base-900 p-5 shadow-panel">
+                  <form onSubmit={(e) => handleSaveLotEdit(e, lot.id)} className="space-y-4">
+                    <LotFields form={lotEditForm} setForm={setLotEditForm} />
+                    {lotEditError && <p className="text-sm text-loss">{lotEditError}</p>}
+                    <div className="flex gap-2">
+                      <button
+                        type="submit"
+                        disabled={lotEditLoading}
+                        className="rounded-lg bg-accent px-3 py-2 text-sm font-medium text-white transition hover:bg-accent-soft disabled:opacity-50"
+                      >
+                        {lotEditLoading ? "Saving..." : "Save"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEditingLotId(null)}
+                        className="rounded-lg border border-white/10 px-3 py-2 text-sm text-muted hover:text-white"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              );
+            }
 
             return (
               <div key={lot.id} className="rounded-xl border border-white/5 bg-base-900 p-5 shadow-panel">
@@ -263,6 +476,9 @@ export function LotManager({ lots, summary }: { lots: LotRow[]; summary: LotsSum
                     >
                       {soldOut ? "Fully sold" : `${lot.soldCount} / ${lot.totalCards} sold`}
                     </span>
+                    <button onClick={() => openEditLot(lot)} className="text-xs text-accent hover:underline">
+                      Edit
+                    </button>
                     <button onClick={() => handleDeleteLot(lot.id)} className="text-xs text-loss hover:underline">
                       Delete
                     </button>
@@ -327,53 +543,7 @@ export function LotManager({ lots, summary }: { lots: LotRow[]; summary: LotsSum
                     onSubmit={(e) => handleAddSale(e, lot.id)}
                     className="mt-4 space-y-3 rounded-lg border border-white/10 bg-base-850 p-4"
                   >
-                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                      <div>
-                        <label className={labelClass}>Sale Date *</label>
-                        <input
-                          required
-                          type="date"
-                          className={inputClass}
-                          value={saleForm.saleDate}
-                          onChange={(e) => setSaleForm((f) => ({ ...f, saleDate: e.target.value }))}
-                        />
-                      </div>
-                      <div>
-                        <label className={labelClass}>Cards Sold *</label>
-                        <input
-                          required
-                          type="number"
-                          step="1"
-                          min="1"
-                          max={lot.remaining}
-                          className={inputClass}
-                          value={saleForm.quantity}
-                          onChange={(e) => setSaleForm((f) => ({ ...f, quantity: e.target.value }))}
-                          placeholder={`Up to ${lot.remaining}`}
-                        />
-                      </div>
-                      <div>
-                        <label className={labelClass}>Profit ($) *</label>
-                        <input
-                          required
-                          type="number"
-                          step="0.01"
-                          className={inputClass}
-                          value={saleForm.profit}
-                          onChange={(e) => setSaleForm((f) => ({ ...f, profit: e.target.value }))}
-                          placeholder="0.00"
-                        />
-                      </div>
-                      <div>
-                        <label className={labelClass}>Notes</label>
-                        <input
-                          className={inputClass}
-                          value={saleForm.notes}
-                          onChange={(e) => setSaleForm((f) => ({ ...f, notes: e.target.value }))}
-                          placeholder="Optional"
-                        />
-                      </div>
-                    </div>
+                    <SaleFields form={saleForm} setForm={setSaleForm} maxQuantity={lot.remaining} costPerCard={lot.costPerCard} />
                     {saleError && <p className="text-sm text-loss">{saleError}</p>}
                     <button
                       type="submit"
@@ -387,35 +557,76 @@ export function LotManager({ lots, summary }: { lots: LotRow[]; summary: LotsSum
 
                 {historyShown && lot.sales.length > 0 && (
                   <ul className="mt-4 divide-y divide-white/5 border-t border-white/5">
-                    {lot.sales.map((sale) => (
-                      <li key={sale.id} className="flex items-center justify-between py-2.5">
-                        <div>
-                          <p className="text-sm text-white">
-                            {sale.quantity} card{sale.quantity === 1 ? "" : "s"}
-                          </p>
-                          <p className="text-xs text-muted">
-                            {new Date(sale.saleDate).toLocaleDateString("en-US", {
-                              month: "short",
-                              day: "numeric",
-                              year: "numeric",
-                              timeZone: "UTC",
-                            })}
-                            {sale.notes ? ` · ${sale.notes}` : ""}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-4">
-                          <span className={clsx("font-mono text-sm", sale.profit >= 0 ? "text-gain" : "text-loss")}>
-                            {formatCents(sale.profit)}
-                          </span>
-                          <button
-                            onClick={() => handleDeleteSale(lot.id, sale.id)}
-                            className="text-xs text-loss hover:underline"
+                    {lot.sales.map((sale) =>
+                      editingSaleId === sale.id ? (
+                        <li key={sale.id} className="py-4">
+                          <form
+                            onSubmit={(e) => handleSaveSaleEdit(e, lot.id, sale.id)}
+                            className="space-y-3 rounded-lg border border-white/10 bg-base-850 p-4"
                           >
-                            Remove
-                          </button>
-                        </div>
-                      </li>
-                    ))}
+                            <SaleFields
+                              form={saleEditForm}
+                              setForm={setSaleEditForm}
+                              maxQuantity={lot.remaining + sale.quantity}
+                              costPerCard={lot.costPerCard}
+                            />
+                            {saleEditError && <p className="text-sm text-loss">{saleEditError}</p>}
+                            <div className="flex gap-2">
+                              <button
+                                type="submit"
+                                disabled={saleEditLoading}
+                                className="rounded-lg bg-accent px-3 py-2 text-sm font-medium text-white transition hover:bg-accent-soft disabled:opacity-50"
+                              >
+                                {saleEditLoading ? "Saving..." : "Save"}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setEditingSaleId(null)}
+                                className="rounded-lg border border-white/10 px-3 py-2 text-sm text-muted hover:text-white"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </form>
+                        </li>
+                      ) : (
+                        <li key={sale.id} className="flex items-center justify-between py-2.5">
+                          <div>
+                            <p className="text-sm text-white">
+                              {sale.quantity} card{sale.quantity === 1 ? "" : "s"}
+                              {sale.salePrice != null && (
+                                <span className="text-muted"> · sold for {formatCents(sale.salePrice)}</span>
+                              )}
+                            </p>
+                            <p className="text-xs text-muted">
+                              {new Date(sale.saleDate).toLocaleDateString("en-US", {
+                                month: "short",
+                                day: "numeric",
+                                year: "numeric",
+                                timeZone: "UTC",
+                              })}
+                              {" · cost "}
+                              {formatCents(Math.round(sale.quantity * lot.costPerCard))}
+                              {sale.notes ? ` · ${sale.notes}` : ""}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-4">
+                            <span className={clsx("font-mono text-sm", sale.profit >= 0 ? "text-gain" : "text-loss")}>
+                              {formatCents(sale.profit)}
+                            </span>
+                            <button onClick={() => openEditSale(sale, lot)} className="text-xs text-accent hover:underline">
+                              Edit
+                            </button>
+                            <button
+                              onClick={() => handleDeleteSale(lot.id, sale.id)}
+                              className="text-xs text-loss hover:underline"
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        </li>
+                      )
+                    )}
                   </ul>
                 )}
               </div>

@@ -72,9 +72,11 @@ model Lot {
   @@index([purchaseDate])
 }
 
-// A single sale transaction against a Lot: some number of cards sold together,
-// with the profit for that transaction entered manually (rather than tracking
-// revenue/cost per individual card in the lot).
+// A single sale transaction against a Lot: some number of cards sold together.
+// salePrice is what the cards actually sold for; profit is computed and stored
+// at write time as salePrice minus (quantity * the lot's cost-per-card) — never
+// the raw sale price. salePrice is nullable only because sales logged before
+// this field existed have just a stored profit and no recorded sale price.
 model LotSale {
   id        String   @id @default(cuid())
   createdAt DateTime @default(now())
@@ -84,7 +86,9 @@ model LotSale {
 
   saleDate  DateTime
   quantity  Int
-  profit    Int      // cents
+  salePrice Int?     // cents; null for legacy sales logged before this field existed
+  profit    Int      // cents; computed from salePrice minus this sale's share of lot cost
+
   notes     String?
 
   @@index([lotId])

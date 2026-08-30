@@ -5,6 +5,7 @@ export interface LotSaleRow {
   id: string;
   saleDate: string;
   quantity: number;
+  salePrice: number | null; // cents; null for legacy sales logged before this field existed
   profit: number; // cents
   notes: string | null;
 }
@@ -32,7 +33,7 @@ export function toLotRow(
     purchaseDate: Date | string;
     notes: string | null;
   },
-  sales: (LotSaleLike & { saleDate: Date | string; notes: string | null })[]
+  sales: (LotSaleLike & { saleDate: Date | string; salePrice: number | null; notes: string | null })[]
 ): LotRow {
   const lotSales = sales.filter((s) => s.lotId === lot.id);
 
@@ -55,6 +56,7 @@ export function toLotRow(
         id: s.id,
         saleDate: new Date(s.saleDate).toISOString(),
         quantity: s.quantity,
+        salePrice: s.salePrice,
         profit: s.profit,
         notes: s.notes,
       })),

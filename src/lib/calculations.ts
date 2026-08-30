@@ -137,6 +137,15 @@ export function computePortfolioSummary(
   };
 }
 
+// Money the owner deposits into the business themselves isn't revenue earned
+// from the business — it's tracked on the Revenue page for reference, but
+// never counted toward Total Revenue, Net P&L, or the trend chart.
+const NON_REVENUE_CATEGORY = "Owner Contribution";
+
+function isTrueRevenue(entry: RevenueLike): boolean {
+  return entry.category !== NON_REVENUE_CATEGORY;
+}
+
 export type PeriodKey = "MONTH" | "YTD" | "ALL";
 
 // Same UTC convention as monthKey below: a date is bucketed by its UTC
@@ -189,7 +198,7 @@ export function computeCashFlowSummaryForPeriod(
   period: PeriodKey,
   now: Date = new Date()
 ): CashFlowSummary {
-  const periodRevenues = revenues.filter((r) => inPeriod(r.date, period, now));
+  const periodRevenues = revenues.filter((r) => isTrueRevenue(r) && inPeriod(r.date, period, now));
   const periodExpenses = expenses.filter((e) => inPeriod(e.date, period, now));
   const totalRevenue = periodRevenues.reduce((sum, r) => sum + r.amount, 0);
   const totalExpenses = periodExpenses.reduce((sum, e) => sum + e.amount, 0);
@@ -231,7 +240,7 @@ export function monthlySeries(revenues: RevenueLike[], expenses: ExpenseLike[]):
   };
 
   for (const r of revenues) {
-    touch(monthKey(toDate(r.date))).revenue += r.amount;
+    if (isTrueRevenue(r)) touch(monthKey(toDate(r.date))).revenue += r.amount;
   }
   for (const e of expenses) {
     touch(monthKey(toDate(e.date))).expenses += e.amount;
@@ -319,6 +328,16 @@ export function lotRemainingCards(lot: LotLike, sales: LotSaleLike[]): number {
 /** Average cost per card in a lot (cents). */
 export function lotCostPerCard(lot: LotLike): number {
   return lot.totalCards > 0 ? lot.totalCost / lot.totalCards : 0;
+}
+
+/**
+ * Profit for a single lot sale: the sale price minus that sale's share of the
+ * lot's cost (quantity × cost per card, rounded to the nearest cent). This is
+ * the only place a lot sale's profit gets computed — callers must never take
+ * the raw sale price as profit, or the card's cost is left out of the math.
+ */
+export function lotSaleProfit(lot: LotLike, quantity: number, salePriceCents: number): number {
+  return salePriceCents - Math.round(quantity * lotCostPerCard(lot));
 }
 
 /** Sum of manually-entered profit across every sale recorded against a lot. */

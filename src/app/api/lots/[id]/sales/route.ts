@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { dollarsToCents } from "@/lib/money";
+import { lotSaleProfit } from "@/lib/calculations";
 
 export const dynamic = "force-dynamic";
 
@@ -21,19 +22,22 @@ export async function POST(req: Request, { params }: Params) {
   if (quantity > lot.totalCards - alreadySold) {
     return NextResponse.json({ error: "Quantity exceeds cards remaining in this lot" }, { status: 400 });
   }
-  const profit = dollarsToCents(body.profit);
-  if (profit == null) {
-    return NextResponse.json({ error: "Profit is required" }, { status: 400 });
+  const salePrice = dollarsToCents(body.salePrice);
+  if (salePrice == null) {
+    return NextResponse.json({ error: "Sale price is required" }, { status: 400 });
   }
   if (!body.saleDate) {
     return NextResponse.json({ error: "Sale date is required" }, { status: 400 });
   }
+
+  const profit = lotSaleProfit(lot, quantity, salePrice);
 
   const sale = await prisma.lotSale.create({
     data: {
       lotId: lot.id,
       saleDate: new Date(body.saleDate),
       quantity,
+      salePrice,
       profit,
       notes: body.notes || null,
     },

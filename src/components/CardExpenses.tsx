@@ -8,7 +8,7 @@ const inputClass =
   "w-full rounded-lg border border-white/10 bg-base-850 px-3 py-2 text-sm text-white placeholder:text-muted focus:border-accent focus:outline-none";
 const labelClass = "mb-1.5 block text-xs font-medium text-muted";
 
-const CATEGORIES = ["Grading", "Shipping", "Supplies", "Fees", "Travel", "Software", "Other"];
+const CATEGORIES = ["Grading", "Shipping", "Supplies", "Inventory", "Fees", "Travel", "Software", "Other"];
 
 interface ExpenseItem {
   id: string;
