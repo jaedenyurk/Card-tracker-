@@ -150,7 +150,7 @@ export type PeriodKey = "MONTH" | "YTD" | "ALL";
 
 // Same UTC convention as monthKey below: a date is bucketed by its UTC
 // calendar month/year so results don't shift with the server's local timezone.
-function inPeriod(date: Date | string, period: PeriodKey, now: Date): boolean {
+export function inPeriod(date: Date | string, period: PeriodKey, now: Date): boolean {
   if (period === "ALL") return true;
   const d = toDate(date);
   if (period === "MONTH") {

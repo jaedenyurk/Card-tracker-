@@ -1,15 +1,22 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { formatCents } from "@/lib/calculations";
+import { formatCents, inPeriod, type PeriodKey } from "@/lib/calculations";
+import { readStoredPeriod, writeStoredPeriod } from "@/lib/periodPreference";
 
 const inputClass =
   "w-full rounded-lg border border-white/10 bg-base-850 px-3 py-2 text-sm text-white placeholder:text-muted focus:border-accent focus:outline-none";
 const labelClass = "mb-1.5 block text-xs font-medium text-muted";
 
 const CATEGORIES = ["Grading", "Shipping", "Supplies", "Inventory", "Fees", "Travel", "Software", "Other"];
+
+const PERIODS: { key: PeriodKey; label: string }[] = [
+  { key: "MONTH", label: "This Month" },
+  { key: "YTD", label: "YTD" },
+  { key: "ALL", label: "All-Time" },
+];
 
 export interface ExpenseRow {
   id: string;
@@ -117,6 +124,7 @@ export function ExpenseManager({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [categoryFilter, setCategoryFilter] = useState<string>("ALL");
+  const [periodFilter, setPeriodFilterState] = useState<PeriodKey>("MONTH");
   const [form, setForm] = useState<ExpenseFormValues>(emptyForm);
 
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -124,10 +132,21 @@ export function ExpenseManager({
   const [editLoading, setEditLoading] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
 
-  const filtered = useMemo(
-    () => (categoryFilter === "ALL" ? expenses : expenses.filter((e) => e.category === categoryFilter)),
-    [expenses, categoryFilter]
-  );
+  // Defaults to whatever period is currently toggled on the Dashboard (and
+  // vice versa) so this list starts scoped instead of showing everything.
+  useEffect(() => setPeriodFilterState(readStoredPeriod()), []);
+
+  function setPeriodFilter(next: PeriodKey) {
+    setPeriodFilterState(next);
+    writeStoredPeriod(next);
+  }
+
+  const filtered = useMemo(() => {
+    const now = new Date();
+    return expenses
+      .filter((e) => categoryFilter === "ALL" || e.category === categoryFilter)
+      .filter((e) => inPeriod(e.date, periodFilter, now));
+  }, [expenses, categoryFilter, periodFilter]);
 
   const total = filtered.reduce((sum, e) => sum + e.amount, 0);
 
@@ -192,16 +211,16 @@ export function ExpenseManager({
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap gap-1 rounded-lg border border-white/10 bg-base-850 p-0.5 text-xs">
-          {["ALL", ...CATEGORIES].map((c) => (
+          {PERIODS.map((p) => (
             <button
-              key={c}
-              onClick={() => setCategoryFilter(c)}
+              key={p.key}
+              onClick={() => setPeriodFilter(p.key)}
               className={
                 "rounded-md px-3 py-1 transition " +
-                (categoryFilter === c ? "bg-accent text-white" : "text-muted hover:text-white")
+                (periodFilter === p.key ? "bg-accent text-white" : "text-muted hover:text-white")
               }
             >
-              {c === "ALL" ? "All" : c}
+              {p.label}
             </button>
           ))}
         </div>
@@ -211,6 +230,21 @@ export function ExpenseManager({
         >
           {adding ? "Cancel" : "+ Add Expense"}
         </button>
+      </div>
+
+      <div className="flex flex-wrap gap-1 rounded-lg border border-white/10 bg-base-850 p-0.5 text-xs">
+        {["ALL", ...CATEGORIES].map((c) => (
+          <button
+            key={c}
+            onClick={() => setCategoryFilter(c)}
+            className={
+              "rounded-md px-3 py-1 transition " +
+              (categoryFilter === c ? "bg-accent text-white" : "text-muted hover:text-white")
+            }
+          >
+            {c === "ALL" ? "All" : c}
+          </button>
+        ))}
       </div>
 
       {adding && (
@@ -230,12 +264,15 @@ export function ExpenseManager({
       <div className="rounded-xl border border-white/5 bg-base-900 shadow-panel">
         <div className="flex items-center justify-between border-b border-white/5 px-5 py-4">
           <h2 className="text-sm font-semibold text-white">
-            {categoryFilter === "ALL" ? "All Expenses" : categoryFilter} ({filtered.length})
+            {categoryFilter === "ALL" ? "All Expenses" : categoryFilter} ·{" "}
+            {PERIODS.find((p) => p.key === periodFilter)?.label} ({filtered.length})
           </h2>
           <p className="font-mono text-sm text-white">{formatCents(total)}</p>
         </div>
         {filtered.length === 0 ? (
-          <p className="px-5 py-10 text-center text-sm text-muted">No expenses recorded yet.</p>
+          <p className="px-5 py-10 text-center text-sm text-muted">
+            {expenses.length === 0 ? "No expenses recorded yet." : "No expenses match this filter."}
+          </p>
         ) : (
           <ul className="divide-y divide-white/5">
             {filtered.map((e) =>

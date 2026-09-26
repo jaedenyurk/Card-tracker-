@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import clsx from "clsx";
 import { formatCents, formatPercent, type PeriodKey } from "@/lib/calculations";
+import { readStoredPeriod, writeStoredPeriod } from "@/lib/periodPreference";
 import { KpiCard } from "@/components/KpiCard";
 import type { PortfolioSummary, CashFlowSummary } from "@/lib/types";
 
@@ -25,7 +26,18 @@ export function DashboardSummary({
   cashSummaries: Record<PeriodKey, CashFlowSummary>;
   portfolioSummaries: Record<PeriodKey, PortfolioSummary>;
 }) {
-  const [period, setPeriod] = useState<PeriodKey>("MONTH");
+  const [period, setPeriodState] = useState<PeriodKey>("MONTH");
+
+  // Read the shared preference after mount (not during the initial render) so
+  // server and client markup match on first paint; the dashboard, revenue, and
+  // expenses pages all read/write this same key, so picking a period carries through.
+  useEffect(() => setPeriodState(readStoredPeriod()), []);
+
+  function setPeriod(next: PeriodKey) {
+    setPeriodState(next);
+    writeStoredPeriod(next);
+  }
+
   const cash = cashSummaries[period];
   const portfolio = portfolioSummaries[period];
 
