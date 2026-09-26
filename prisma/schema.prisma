@@ -67,6 +67,11 @@ model Lot {
   totalCost    Int      // cents
   notes        String?
 
+  // Estimated current value of this lot's not-yet-sold cards (for unrealized
+  // P&L), same idea as Card.marketValue. Feeds the dashboard's Inventory
+  // (Est. Value) / Unrealized P&L / Overall ROI once set.
+  estValue     Int?
+
   sales       LotSale[]
 
   @@index([purchaseDate])

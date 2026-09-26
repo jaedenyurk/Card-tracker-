@@ -43,6 +43,10 @@ export async function PATCH(req: Request, { params }: Params) {
     data.totalCost = totalCost;
   }
 
+  if ("estValue" in body) {
+    data.estValue = dollarsToCents(body.estValue);
+  }
+
   const updated = await prisma.lot.update({ where: { id: params.id }, data });
   return NextResponse.json(updated);
 }

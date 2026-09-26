@@ -1,4 +1,12 @@
-import { lotCostPerCard, lotRealizedProfit, lotROI, lotSoldCount, lotRemainingCards } from "./calculations";
+import {
+  lotCostPerCard,
+  lotRealizedProfit,
+  lotROI,
+  lotSoldCount,
+  lotRemainingCards,
+  lotRemainingCostValue,
+  lotUnrealizedProfit,
+} from "./calculations";
 import type { LotLike, LotSaleLike } from "./types";
 
 export interface LotSaleRow {
@@ -23,6 +31,9 @@ export interface LotRow {
   remaining: number;
   realizedProfit: number; // cents
   roi: number | null;
+  estValue: number | null; // cents, estimated value of the remaining cards
+  remainingCostValue: number; // cents, cost basis of the remaining cards
+  unrealizedProfit: number | null; // estValue - remainingCostValue, null until estValue is set
   sales: LotSaleRow[];
 }
 
@@ -50,6 +61,9 @@ export function toLotRow(
     remaining: lotRemainingCards(lot, sales),
     realizedProfit: lotRealizedProfit(lot, sales),
     roi: lotROI(lot, sales),
+    estValue: lot.estValue ?? null,
+    remainingCostValue: lotRemainingCostValue(lot, sales),
+    unrealizedProfit: lotUnrealizedProfit(lot, sales),
     sales: [...lotSales]
       .sort((a, b) => new Date(b.saleDate).getTime() - new Date(a.saleDate).getTime())
       .map((s) => ({

@@ -37,6 +37,7 @@ export async function POST(req: Request) {
       totalCards,
       totalCost,
       notes: body.notes || null,
+      estValue: dollarsToCents(body.estValue),
     },
   });
 

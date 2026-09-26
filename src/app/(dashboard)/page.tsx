@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import {
   computePortfolioSummaryForPeriod,
   computeCashFlowSummaryForPeriod,
+  computeLotsSummary,
   monthlySeries,
   yearlySeries,
   type PeriodKey,
@@ -16,11 +17,15 @@ import type { PortfolioSummary, CashFlowSummary } from "@/lib/types";
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
-  const [cards, expenses, revenue] = await Promise.all([
+  const [cards, expenses, revenue, lots] = await Promise.all([
     prisma.card.findMany(),
     prisma.expense.findMany(),
     prisma.revenue.findMany(),
+    prisma.lot.findMany({ include: { sales: true } }),
   ]);
+
+  const lotSales = lots.flatMap((l) => l.sales);
+  const lotCardsRemaining = computeLotsSummary(lots, lotSales).totalCardsRemaining;
 
   const now = new Date();
   const periods: PeriodKey[] = ["MONTH", "YTD", "ALL"];
@@ -32,9 +37,9 @@ export default async function DashboardPage() {
   ) as Record<PeriodKey, CashFlowSummary>;
 
   // Everything else (Realized ROI, inventory value, unrealized P&L, Overall ROI)
-  // still comes from cards/cost-basis, same as before.
+  // still comes from cards/cost-basis, plus each lot's remaining cost/Est. Value.
   const portfolioSummaries = Object.fromEntries(
-    periods.map((p) => [p, computePortfolioSummaryForPeriod(cards, expenses, p, now)])
+    periods.map((p) => [p, computePortfolioSummaryForPeriod(cards, expenses, p, now, lots, lotSales)])
   ) as Record<PeriodKey, PortfolioSummary>;
 
   const monthly = monthlySeries(revenue, expenses);
@@ -60,7 +65,11 @@ export default async function DashboardPage() {
         </Link>
       </div>
 
-      <DashboardSummary cashSummaries={cashSummaries} portfolioSummaries={portfolioSummaries} />
+      <DashboardSummary
+        cashSummaries={cashSummaries}
+        portfolioSummaries={portfolioSummaries}
+        lotCardsRemaining={lotCardsRemaining}
+      />
 
       <RevenueChart monthly={monthly} yearly={yearly} />
 

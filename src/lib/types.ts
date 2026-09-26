@@ -66,6 +66,7 @@ export interface LotLike {
   id: string;
   totalCards: number;
   totalCost: number; // cents
+  estValue?: number | null; // cents, estimated current value of the not-yet-sold cards
 }
 
 export interface LotSaleLike {
@@ -84,6 +85,10 @@ export interface LotsSummary {
   totalRealizedProfit: number; // cents
   overallROI: number | null; // totalRealizedProfit / totalInvested * 100
   percentSold: number | null; // totalCardsSold / totalCardsBought * 100
+
+  remainingCostValue: number; // cents, cost basis of not-yet-sold cards across all lots
+  remainingEstValue: number | null; // cents, null unless at least one lot has an estimate set
+  unrealizedProfit: number | null; // remainingEstValue - remainingCostValue
 }
 
 export interface MonthlyPoint {

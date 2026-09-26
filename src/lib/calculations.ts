@@ -77,10 +77,18 @@ export function cardProfit(card: CardLike, expenses: ExpenseLike[]): number | nu
  * card (shipping supplies, subscriptions, travel, etc.) are recognized as
  * operating expenses in the period they were incurred, regardless of
  * inventory status.
+ *
+ * Lots' not-yet-sold cards count as held inventory too: their remaining cost
+ * basis always feeds Inventory (Cost), and once a lot has an Est. Value set,
+ * that feeds Inventory (Est. Value) / Unrealized P&L / Overall ROI the same
+ * way a Card's marketValue does. A lot's own realized sale profit is tracked
+ * separately (see computeLotsSummary) and never enters cogs/realizedProfit here.
  */
 export function computePortfolioSummary(
   cards: CardLike[],
-  expenses: ExpenseLike[]
+  expenses: ExpenseLike[],
+  lots: LotLike[] = [],
+  lotSales: LotSaleLike[] = []
 ): PortfolioSummary {
   const sold = cards.filter((c) => c.status === "SOLD");
   const held = cards.filter((c) => c.status === "HELD");
@@ -96,12 +104,35 @@ export function computePortfolioSummary(
   const realizedProfit = totalRevenue - cogs;
   const realizedROI = cogs !== 0 ? (realizedProfit / cogs) * 100 : null;
 
-  const inventoryCostValue = held.reduce((sum, c) => sum + cardCostBasis(c, expenses), 0);
+  const cardInventoryCostValue = held.reduce((sum, c) => sum + cardCostBasis(c, expenses), 0);
   const heldWithMarketValue = held.filter((c) => c.marketValue != null);
-  const inventoryMarketValue =
+  const cardInventoryMarketValue =
     heldWithMarketValue.length > 0
       ? heldWithMarketValue.reduce((sum, c) => sum + (c.marketValue ?? 0), 0) +
         held.filter((c) => c.marketValue == null).reduce((sum, c) => sum + cardCostBasis(c, expenses), 0)
+      : null;
+
+  // A lot's not-yet-sold cards are held inventory too, same as a Card with
+  // status HELD — they just aren't tracked one by one. Roll their remaining
+  // cost basis (and, once set, their estimated value) into the same figures.
+  const lotsWithRemaining = lots.filter((l) => lotRemainingCards(l, lotSales) > 0);
+  const lotInventoryCostValue = lotsWithRemaining.reduce(
+    (sum, l) => sum + lotRemainingCostValue(l, lotSales),
+    0
+  );
+  const lotsWithEstimate = lotsWithRemaining.filter((l) => l.estValue != null);
+  const lotInventoryMarketValue =
+    lotsWithEstimate.length > 0
+      ? lotsWithRemaining.reduce(
+          (sum, l) => sum + (l.estValue ?? lotRemainingCostValue(l, lotSales)),
+          0
+        )
+      : null;
+
+  const inventoryCostValue = cardInventoryCostValue + lotInventoryCostValue;
+  const inventoryMarketValue =
+    heldWithMarketValue.length > 0 || lotsWithEstimate.length > 0
+      ? (cardInventoryMarketValue ?? cardInventoryCostValue) + (lotInventoryMarketValue ?? lotInventoryCostValue)
       : null;
 
   const unrealizedProfit =
@@ -171,7 +202,9 @@ export function computePortfolioSummaryForPeriod(
   cards: CardLike[],
   expenses: ExpenseLike[],
   period: PeriodKey,
-  now: Date = new Date()
+  now: Date = new Date(),
+  lots: LotLike[] = [],
+  lotSales: LotSaleLike[] = []
 ): PortfolioSummary {
   const periodCards = cards.filter(
     (c) => c.status === "HELD" || (c.status === "SOLD" && c.soldDate != null && inPeriod(c.soldDate, period, now))
@@ -180,10 +213,12 @@ export function computePortfolioSummaryForPeriod(
   // but only count general expenses incurred within the period.
   const periodExpenses = expenses.filter((e) => e.cardId != null || inPeriod(e.date, period, now));
 
-  const periodSummary = computePortfolioSummary(periodCards, periodExpenses);
+  // Lots' remaining inventory is a snapshot of current holdings, same as held
+  // cards — it isn't scoped to a period, so it's passed through unfiltered.
+  const periodSummary = computePortfolioSummary(periodCards, periodExpenses, lots, lotSales);
   if (period === "ALL") return periodSummary;
 
-  return { ...periodSummary, overallROI: computePortfolioSummary(cards, expenses).overallROI };
+  return { ...periodSummary, overallROI: computePortfolioSummary(cards, expenses, lots, lotSales).overallROI };
 }
 
 /**
@@ -330,6 +365,20 @@ export function lotCostPerCard(lot: LotLike): number {
   return lot.totalCards > 0 ? lot.totalCost / lot.totalCards : 0;
 }
 
+/** Cost basis of a lot's not-yet-sold cards (cents). */
+export function lotRemainingCostValue(lot: LotLike, sales: LotSaleLike[]): number {
+  return Math.round(lotRemainingCards(lot, sales) * lotCostPerCard(lot));
+}
+
+/**
+ * Unrealized profit on a lot's remaining cards, using its Est. Value. Null if
+ * no estimate has been entered, or the lot is fully sold (nothing left to hold).
+ */
+export function lotUnrealizedProfit(lot: LotLike, sales: LotSaleLike[]): number | null {
+  if (lot.estValue == null || lotRemainingCards(lot, sales) <= 0) return null;
+  return lot.estValue - lotRemainingCostValue(lot, sales);
+}
+
 /**
  * Profit for a single lot sale: the sale price minus that sale's share of the
  * lot's cost (quantity × cost per card, rounded to the nearest cent). This is
@@ -358,6 +407,14 @@ export function computeLotsSummary(lots: LotLike[], sales: LotSaleLike[]): LotsS
   const totalInvested = lots.reduce((sum, l) => sum + l.totalCost, 0);
   const totalRealizedProfit = sales.reduce((sum, s) => sum + s.profit, 0);
 
+  const lotsWithRemaining = lots.filter((l) => lotRemainingCards(l, sales) > 0);
+  const remainingCostValue = lotsWithRemaining.reduce((sum, l) => sum + lotRemainingCostValue(l, sales), 0);
+  const lotsWithEstimate = lotsWithRemaining.filter((l) => l.estValue != null);
+  const remainingEstValue =
+    lotsWithEstimate.length > 0
+      ? lotsWithRemaining.reduce((sum, l) => sum + (l.estValue ?? lotRemainingCostValue(l, sales)), 0)
+      : null;
+
   return {
     lotCount: lots.length,
     totalCardsBought,
@@ -367,6 +424,9 @@ export function computeLotsSummary(lots: LotLike[], sales: LotSaleLike[]): LotsS
     totalRealizedProfit,
     overallROI: totalInvested !== 0 ? (totalRealizedProfit / totalInvested) * 100 : null,
     percentSold: totalCardsBought !== 0 ? (totalCardsSold / totalCardsBought) * 100 : null,
+    remainingCostValue,
+    remainingEstValue,
+    unrealizedProfit: remainingEstValue != null ? remainingEstValue - remainingCostValue : null,
   };
 }
 

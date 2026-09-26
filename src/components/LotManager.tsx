@@ -18,6 +18,7 @@ type LotFormValues = {
   purchaseDate: string;
   totalCards: string;
   totalCost: string;
+  estValue: string;
   notes: string;
 };
 
@@ -27,6 +28,7 @@ const emptyLotForm: LotFormValues = {
   purchaseDate: new Date().toISOString().slice(0, 10),
   totalCards: "",
   totalCost: "",
+  estValue: "",
   notes: "",
 };
 
@@ -107,6 +109,18 @@ function LotFields({
             value={form.totalCost}
             onChange={(e) => setForm((f) => ({ ...f, totalCost: e.target.value }))}
             placeholder="0.00"
+          />
+        </div>
+        <div>
+          <label className={labelClass}>Est. Value ($)</label>
+          <input
+            type="number"
+            step="0.01"
+            min="0"
+            className={inputClass}
+            value={form.estValue}
+            onChange={(e) => setForm((f) => ({ ...f, estValue: e.target.value }))}
+            placeholder="Optional — value of what's left unsold"
           />
         </div>
       </div>
@@ -274,6 +288,7 @@ export function LotManager({ lots, summary }: { lots: LotRow[]; summary: LotsSum
       purchaseDate: lot.purchaseDate.slice(0, 10),
       totalCards: lot.totalCards.toString(),
       totalCost: (lot.totalCost / 100).toString(),
+      estValue: lot.estValue != null ? (lot.estValue / 100).toString() : "",
       notes: lot.notes ?? "",
     });
   }
@@ -519,6 +534,36 @@ export function LotManager({ lots, summary }: { lots: LotRow[]; summary: LotsSum
                     </p>
                   </div>
                 </div>
+
+                {!soldOut && (
+                  <div className="mt-4 grid grid-cols-2 gap-4 border-t border-white/5 pt-4 sm:grid-cols-4">
+                    <div>
+                      <p className="text-xs text-muted">Remaining Cost</p>
+                      <p className="font-mono text-sm text-white">{formatCents(lot.remainingCostValue)}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted">Est. Value</p>
+                      <p className="font-mono text-sm text-white">
+                        {lot.estValue != null ? formatCents(lot.estValue) : "—"}
+                      </p>
+                    </div>
+                    <div className="col-span-2 sm:col-span-2">
+                      <p className="text-xs text-muted">Unrealized P&L</p>
+                      <p
+                        className={clsx(
+                          "font-mono text-sm",
+                          lot.unrealizedProfit == null
+                            ? "text-muted"
+                            : lot.unrealizedProfit >= 0
+                              ? "text-gain"
+                              : "text-loss"
+                        )}
+                      >
+                        {lot.unrealizedProfit != null ? formatCents(lot.unrealizedProfit) : "Add an Est. Value to see this"}
+                      </p>
+                    </div>
+                  </div>
+                )}
 
                 {lot.notes && <p className="mt-3 text-xs text-muted">{lot.notes}</p>}
 

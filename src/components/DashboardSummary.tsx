@@ -22,9 +22,11 @@ const PERIOD_SUBLABEL: Record<PeriodKey, string> = {
 export function DashboardSummary({
   cashSummaries,
   portfolioSummaries,
+  lotCardsRemaining,
 }: {
   cashSummaries: Record<PeriodKey, CashFlowSummary>;
   portfolioSummaries: Record<PeriodKey, PortfolioSummary>;
+  lotCardsRemaining: number;
 }) {
   const [period, setPeriodState] = useState<PeriodKey>("MONTH");
 
@@ -87,17 +89,21 @@ export function DashboardSummary({
           }
           sublabel={`On sold cards · ${PERIOD_SUBLABEL[period]}`}
         />
-        <KpiCard label="Inventory (Cost)" value={formatCents(portfolio.inventoryCostValue)} sublabel={`${portfolio.heldCount} held`} />
+        <KpiCard
+          label="Inventory (Cost)"
+          value={formatCents(portfolio.inventoryCostValue)}
+          sublabel={`${portfolio.heldCount} held${lotCardsRemaining > 0 ? ` + ${lotCardsRemaining} lot cards` : ""}`}
+        />
         <KpiCard
           label="Inventory (Est. Value)"
           value={portfolio.inventoryMarketValue != null ? formatCents(portfolio.inventoryMarketValue) : "—"}
-          sublabel="Held cards"
+          sublabel={lotCardsRemaining > 0 ? "Held cards + lots" : "Held cards"}
         />
         <KpiCard
           label="Unrealized P&L"
           value={portfolio.unrealizedProfit != null ? formatCents(portfolio.unrealizedProfit) : "—"}
           tone={portfolio.unrealizedProfit == null ? "neutral" : portfolio.unrealizedProfit >= 0 ? "gain" : "loss"}
-          sublabel="Held cards vs. cost"
+          sublabel={lotCardsRemaining > 0 ? "Held cards + lots vs. cost" : "Held cards vs. cost"}
         />
         <KpiCard
           label="Overall ROI"

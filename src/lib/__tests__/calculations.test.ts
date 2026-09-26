@@ -15,6 +15,8 @@ import {
   lotSoldCount,
   lotRemainingCards,
   lotCostPerCard,
+  lotRemainingCostValue,
+  lotUnrealizedProfit,
   lotSaleProfit,
   lotRealizedProfit,
   lotROI,
@@ -415,4 +417,94 @@ test("computeLotsSummary handles no lots without dividing by zero", () => {
   const summary = computeLotsSummary([], []);
   assert.equal(summary.overallROI, null);
   assert.equal(summary.percentSold, null);
+});
+
+test("lotRemainingCostValue is the cost basis of the not-yet-sold cards", () => {
+  const l = lot({ id: "l1", totalCards: 10, totalCost: 10000 }); // $1000/card
+  const sales: LotSaleLike[] = [lotSale({ id: "s1", lotId: "l1", quantity: 4 })];
+  assert.equal(lotRemainingCostValue(l, sales), 6000); // 6 remaining * 1000
+});
+
+test("lotUnrealizedProfit is estValue minus the remaining cost basis", () => {
+  const l = lot({ id: "l1", totalCards: 10, totalCost: 10000, estValue: 8000 }); // $1000/card
+  const sales: LotSaleLike[] = [lotSale({ id: "s1", lotId: "l1", quantity: 4 })];
+  // 6 remaining * $1000 cost = $6000; est value $8000 -> +$2000 unrealized
+  assert.equal(lotUnrealizedProfit(l, sales), 2000);
+});
+
+test("lotUnrealizedProfit is null when no estValue has been set", () => {
+  const l = lot({ id: "l1", totalCards: 10, totalCost: 10000 });
+  assert.equal(lotUnrealizedProfit(l, []), null);
+});
+
+test("lotUnrealizedProfit is null once the lot is fully sold, even with an estValue set", () => {
+  const l = lot({ id: "l1", totalCards: 5, totalCost: 5000, estValue: 9999 });
+  const sales: LotSaleLike[] = [lotSale({ id: "s1", lotId: "l1", quantity: 5 })];
+  assert.equal(lotUnrealizedProfit(l, sales), null);
+});
+
+test("computePortfolioSummary folds a lot's remaining cost into Inventory (Cost), independent of cards", () => {
+  const cards: CardLike[] = [card({ id: "c1", status: "SOLD", purchasePrice: 100, soldPrice: 200 })];
+  const l = lot({ id: "l1", totalCards: 10, totalCost: 10000 }); // $1000/card
+  const sales: LotSaleLike[] = [lotSale({ id: "s1", lotId: "l1", quantity: 4 })];
+  const summary = computePortfolioSummary(cards, [], [l], sales);
+  assert.equal(summary.inventoryCostValue, 6000); // no held cards, just 6 remaining lot cards
+  assert.equal(summary.inventoryMarketValue, null); // no card or lot estimate set
+});
+
+test("computePortfolioSummary uses a lot's estValue for Inventory (Est. Value) even with no held cards", () => {
+  const l = lot({ id: "l1", totalCards: 10, totalCost: 10000, estValue: 7000 });
+  const summary = computePortfolioSummary([], [], [l], []);
+  assert.equal(summary.inventoryCostValue, 10000);
+  assert.equal(summary.inventoryMarketValue, 7000);
+  assert.equal(summary.unrealizedProfit, -3000);
+});
+
+test("computePortfolioSummary falls back to cost basis for the side (cards or lots) missing its own estimate", () => {
+  const cards: CardLike[] = [card({ id: "c1", status: "HELD", purchasePrice: 500, marketValue: 800 })];
+  const l = lot({ id: "l1", totalCards: 10, totalCost: 10000 }); // no estValue set
+  const summary = computePortfolioSummary(cards, [], [l], []);
+  // Card contributes its own marketValue (800); the lot has no estimate, so it
+  // falls back to its own cost basis (10000) rather than being excluded.
+  assert.equal(summary.inventoryCostValue, 500 + 10000);
+  assert.equal(summary.inventoryMarketValue, 800 + 10000);
+});
+
+test("computePortfolioSummary excludes a fully-sold lot from inventory even if it has an estValue", () => {
+  const l = lot({ id: "l1", totalCards: 5, totalCost: 5000, estValue: 9999 });
+  const sales: LotSaleLike[] = [lotSale({ id: "s1", lotId: "l1", quantity: 5 })];
+  const summary = computePortfolioSummary([], [], [l], sales);
+  assert.equal(summary.inventoryCostValue, 0);
+  assert.equal(summary.inventoryMarketValue, null);
+});
+
+test("computePortfolioSummaryForPeriod passes lots through unfiltered, like held cards", () => {
+  const l = lot({ id: "l1", totalCards: 10, totalCost: 10000, estValue: 12000 });
+  const now = new Date("2026-06-15");
+  const summary = computePortfolioSummaryForPeriod([], [], "MONTH", now, [l], []);
+  assert.equal(summary.inventoryCostValue, 10000);
+  assert.equal(summary.inventoryMarketValue, 12000);
+});
+
+test("computeLotsSummary reports remaining cost/est value and unrealized P&L across lots", () => {
+  const lots: LotLike[] = [
+    lot({ id: "l1", totalCards: 10, totalCost: 10000, estValue: 7000 }), // $1000/card
+    lot({ id: "l2", totalCards: 10, totalCost: 20000 }), // no estimate; $2000/card
+  ];
+  const sales: LotSaleLike[] = [
+    lotSale({ id: "s1", lotId: "l1", quantity: 4 }), // 6 remaining in l1
+    lotSale({ id: "s2", lotId: "l2", quantity: 10 }), // l2 fully sold
+  ];
+  const summary = computeLotsSummary(lots, sales);
+  assert.equal(summary.remainingCostValue, 6000); // only l1 has cards remaining
+  assert.equal(summary.remainingEstValue, 7000); // l2 contributes nothing (fully sold)
+  assert.equal(summary.unrealizedProfit, 1000);
+});
+
+test("computeLotsSummary reports null remaining est value when no lot with cards left has an estimate", () => {
+  const lots: LotLike[] = [lot({ id: "l1", totalCards: 10, totalCost: 10000 })];
+  const summary = computeLotsSummary(lots, []);
+  assert.equal(summary.remainingCostValue, 10000);
+  assert.equal(summary.remainingEstValue, null);
+  assert.equal(summary.unrealizedProfit, null);
 });

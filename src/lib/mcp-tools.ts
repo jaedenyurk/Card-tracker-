@@ -190,10 +190,15 @@ export function registerTools(server: McpServer): void {
         purchaseDate: z.string().describe("YYYY-MM-DD"),
         totalCards: z.number().int().positive(),
         totalCost: z.number().nonnegative().describe("Total dollar amount paid for the whole lot"),
+        estValue: z
+          .number()
+          .nonnegative()
+          .optional()
+          .describe("Estimated current value of the lot's cards, in dollars — feeds the dashboard's inventory value/unrealized P&L"),
         notes: z.string().optional(),
       }),
     },
-    async ({ name, source, purchaseDate, totalCards, totalCost, notes }) => {
+    async ({ name, source, purchaseDate, totalCards, totalCost, estValue, notes }) => {
       const cents = dollarsToCents(totalCost);
       if (cents == null) return errorResult("totalCost is required.");
       const lot = await prisma.lot.create({
@@ -203,10 +208,39 @@ export function registerTools(server: McpServer): void {
           purchaseDate: new Date(purchaseDate),
           totalCards,
           totalCost: cents,
+          estValue: estValue != null ? dollarsToCents(estValue) : null,
           notes: notes || null,
         },
       });
-      return json({ id: lot.id, name: lot.name, totalCards: lot.totalCards, totalCost: centsToDollars(lot.totalCost) });
+      return json({
+        id: lot.id,
+        name: lot.name,
+        totalCards: lot.totalCards,
+        totalCost: centsToDollars(lot.totalCost),
+        estValue: centsToDollars(lot.estValue),
+      });
+    }
+  );
+
+  server.registerTool(
+    "update_lot_value",
+    {
+      title: "Update Lot Estimated Value",
+      description:
+        "Update a lot's estimated current value for its not-yet-sold cards, used for unrealized P&L. Call list_lots first to find the lot's id.",
+      inputSchema: z.object({
+        lotId: z.string(),
+        estValue: z.number().nonnegative().describe("Estimated value of the remaining cards, in dollars"),
+      }),
+    },
+    async ({ lotId, estValue }) => {
+      const existing = await prisma.lot.findUnique({ where: { id: lotId } });
+      if (!existing) return errorResult(`No lot found with id ${lotId}.`);
+      const updated = await prisma.lot.update({
+        where: { id: lotId },
+        data: { estValue: dollarsToCents(estValue) },
+      });
+      return json({ id: updated.id, name: updated.name, estValue: centsToDollars(updated.estValue) });
     }
   );
 
@@ -296,7 +330,8 @@ export function registerTools(server: McpServer): void {
     "list_lots",
     {
       title: "List Lots",
-      description: "List all lot buys with cards sold/remaining, cost per card, realized profit, and ROI.",
+      description:
+        "List all lot buys with cards sold/remaining, cost per card, realized profit, ROI, and (once set) each lot's estimated value and unrealized P&L on its remaining cards.",
       inputSchema: z.object({}),
     },
     async () => {
@@ -315,6 +350,9 @@ export function registerTools(server: McpServer): void {
           costPerCard: centsToDollars(Math.round(r.costPerCard)),
           realizedProfit: centsToDollars(r.realizedProfit),
           roi: r.roi != null ? round1(r.roi) : null,
+          estValue: centsToDollars(r.estValue),
+          remainingCostValue: centsToDollars(r.remainingCostValue),
+          unrealizedProfit: r.unrealizedProfit != null ? centsToDollars(r.unrealizedProfit) : null,
         }))
       );
     }
@@ -402,13 +440,15 @@ export function registerTools(server: McpServer): void {
     },
     async ({ period }) => {
       const p: PeriodKey = period ?? "MONTH";
-      const [cards, expenses, revenues] = await Promise.all([
+      const [cards, expenses, revenues, lots] = await Promise.all([
         prisma.card.findMany(),
         prisma.expense.findMany(),
         prisma.revenue.findMany(),
+        prisma.lot.findMany({ include: { sales: true } }),
       ]);
+      const lotSales = lots.flatMap((l) => l.sales);
       const cash = computeCashFlowSummaryForPeriod(revenues, expenses, p);
-      const portfolio = computePortfolioSummaryForPeriod(cards, expenses, p);
+      const portfolio = computePortfolioSummaryForPeriod(cards, expenses, p, new Date(), lots, lotSales);
       return json({
         period: p,
         totalRevenue: centsToDollars(cash.totalRevenue),
