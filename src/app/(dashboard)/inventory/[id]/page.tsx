@@ -46,7 +46,7 @@ export default async function CardDetailPage({ params }: { params: { id: string 
           </span>
           <Link
             href={`/inventory/${card.id}/edit`}
-            className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-white/5"
+            className="rounded-lg border border-accent/20 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-accent/10"
           >
             Edit
           </Link>
@@ -76,7 +76,7 @@ export default async function CardDetailPage({ params }: { params: { id: string 
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <div className="space-y-4">
-          <div className="rounded-xl border border-white/5 bg-base-900 p-5 shadow-panel">
+          <div className="rounded-xl border border-accent/10 bg-base-900 p-5 shadow-panel">
             <h2 className="mb-4 text-sm font-semibold text-white">Details</h2>
             <dl className="space-y-2 text-sm">
               <Row label="Card #" value={card.cardNumber} />
@@ -124,7 +124,7 @@ export default async function CardDetailPage({ params }: { params: { id: string 
 
 function Stat({ label, value, tone = "neutral" }: { label: string; value: string; tone?: "neutral" | "gain" | "loss" }) {
   return (
-    <div className="rounded-xl border border-white/5 bg-base-900 p-4 shadow-panel">
+    <div className="rounded-xl border border-accent/10 bg-base-900 p-4 shadow-panel">
       <p className="text-xs uppercase tracking-wide text-muted">{label}</p>
       <p
         className={

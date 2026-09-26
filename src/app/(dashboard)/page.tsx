@@ -59,7 +59,7 @@ export default async function DashboardPage() {
         </div>
         <Link
           href="/inventory/new"
-          className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white transition hover:bg-accent-soft"
+          className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-base-950 transition hover:bg-accent-soft"
         >
           + Add Card
         </Link>

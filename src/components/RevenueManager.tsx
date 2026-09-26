@@ -7,7 +7,7 @@ import { formatCents, inPeriod, type PeriodKey } from "@/lib/calculations";
 import { readStoredPeriod, writeStoredPeriod } from "@/lib/periodPreference";
 
 const inputClass =
-  "w-full rounded-lg border border-white/10 bg-base-850 px-3 py-2 text-sm text-white placeholder:text-muted focus:border-accent focus:outline-none";
+  "w-full rounded-lg border border-accent/20 bg-base-850 px-3 py-2 text-sm text-white placeholder:text-muted focus:border-accent focus:outline-none";
 const labelClass = "mb-1.5 block text-xs font-medium text-muted";
 
 const CATEGORIES = ["Card Sale", "Lot Sale", "Shipping", "Owner Contribution", "Other"];
@@ -213,14 +213,14 @@ export function RevenueManager({
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap gap-1 rounded-lg border border-white/10 bg-base-850 p-0.5 text-xs">
+        <div className="flex flex-wrap gap-1 rounded-lg border border-accent/20 bg-base-850 p-0.5 text-xs">
           {PERIODS.map((p) => (
             <button
               key={p.key}
               onClick={() => setPeriodFilter(p.key)}
               className={
                 "rounded-md px-3 py-1 transition " +
-                (periodFilter === p.key ? "bg-accent text-white" : "text-muted hover:text-white")
+                (periodFilter === p.key ? "bg-accent text-base-950" : "text-muted hover:text-white")
               }
             >
               {p.label}
@@ -229,20 +229,20 @@ export function RevenueManager({
         </div>
         <button
           onClick={() => setAdding((a) => !a)}
-          className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white transition hover:bg-accent-soft"
+          className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-base-950 transition hover:bg-accent-soft"
         >
           {adding ? "Cancel" : "+ Add Revenue"}
         </button>
       </div>
 
-      <div className="flex flex-wrap gap-1 rounded-lg border border-white/10 bg-base-850 p-0.5 text-xs">
+      <div className="flex flex-wrap gap-1 rounded-lg border border-accent/20 bg-base-850 p-0.5 text-xs">
         {["ALL", ...CATEGORIES].map((c) => (
           <button
             key={c}
             onClick={() => setCategoryFilter(c)}
             className={
               "rounded-md px-3 py-1 transition " +
-              (categoryFilter === c ? "bg-accent text-white" : "text-muted hover:text-white")
+              (categoryFilter === c ? "bg-accent text-base-950" : "text-muted hover:text-white")
             }
           >
             {c === "ALL" ? "All" : c}
@@ -251,21 +251,21 @@ export function RevenueManager({
       </div>
 
       {adding && (
-        <form onSubmit={handleAdd} className="space-y-4 rounded-xl border border-white/5 bg-base-900 p-5 shadow-panel">
+        <form onSubmit={handleAdd} className="space-y-4 rounded-xl border border-accent/10 bg-base-900 p-5 shadow-panel">
           <RevenueFields form={form} setForm={setForm} cardOptions={cardOptions} />
           {error && <p className="text-sm text-loss">{error}</p>}
           <button
             type="submit"
             disabled={loading}
-            className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white transition hover:bg-accent-soft disabled:opacity-50"
+            className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-base-950 transition hover:bg-accent-soft disabled:opacity-50"
           >
             {loading ? "Saving..." : "Add Revenue"}
           </button>
         </form>
       )}
 
-      <div className="rounded-xl border border-white/5 bg-base-900 shadow-panel">
-        <div className="flex items-center justify-between border-b border-white/5 px-5 py-4">
+      <div className="rounded-xl border border-accent/10 bg-base-900 shadow-panel">
+        <div className="flex items-center justify-between border-b border-accent/10 px-5 py-4">
           <h2 className="text-sm font-semibold text-white">
             {categoryFilter === "ALL" ? "All Revenue" : categoryFilter} ·{" "}
             {PERIODS.find((p) => p.key === periodFilter)?.label} ({filtered.length})
@@ -277,7 +277,7 @@ export function RevenueManager({
             {revenue.length === 0 ? "No revenue recorded yet." : "No revenue matches this filter."}
           </p>
         ) : (
-          <ul className="divide-y divide-white/5">
+          <ul className="divide-y divide-accent/10">
             {filtered.map((r) =>
               editingId === r.id ? (
                 <li key={r.id} className="px-5 py-4">
@@ -288,14 +288,14 @@ export function RevenueManager({
                       <button
                         type="submit"
                         disabled={editLoading}
-                        className="rounded-lg bg-accent px-3 py-2 text-sm font-medium text-white transition hover:bg-accent-soft disabled:opacity-50"
+                        className="rounded-lg bg-accent px-3 py-2 text-sm font-medium text-base-950 transition hover:bg-accent-soft disabled:opacity-50"
                       >
                         {editLoading ? "Saving..." : "Save"}
                       </button>
                       <button
                         type="button"
                         onClick={() => setEditingId(null)}
-                        className="rounded-lg border border-white/10 px-3 py-2 text-sm text-muted hover:text-white"
+                        className="rounded-lg border border-accent/20 px-3 py-2 text-sm text-muted hover:text-white"
                       >
                         Cancel
                       </button>

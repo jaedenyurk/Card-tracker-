@@ -45,14 +45,14 @@ export function DashboardSummary({
 
   return (
     <div className="space-y-4">
-      <div className="flex w-fit gap-1 rounded-lg border border-white/10 bg-base-850 p-0.5 text-xs">
+      <div className="flex w-fit gap-1 rounded-lg border border-accent/20 bg-base-850 p-0.5 text-xs">
         {PERIODS.map((p) => (
           <button
             key={p.key}
             onClick={() => setPeriod(p.key)}
             className={clsx(
               "rounded-md px-3 py-1 transition",
-              period === p.key ? "bg-accent text-white" : "text-muted hover:text-white"
+              period === p.key ? "bg-accent text-base-950" : "text-muted hover:text-white"
             )}
           >
             {p.label}

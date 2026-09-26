@@ -53,19 +53,19 @@ export function InventoryTable({ rows }: { rows: CardRow[] }) {
   ];
 
   return (
-    <div className="rounded-xl border border-white/5 bg-base-900 shadow-panel">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/5 px-5 py-4">
+    <div className="rounded-xl border border-accent/10 bg-base-900 shadow-panel">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-accent/10 px-5 py-4">
         <h2 className="text-sm font-semibold text-white">
           Inventory <span className="text-muted font-normal">({sorted.length})</span>
         </h2>
-        <div className="flex gap-1 rounded-lg border border-white/10 bg-base-850 p-0.5 text-xs">
+        <div className="flex gap-1 rounded-lg border border-accent/20 bg-base-850 p-0.5 text-xs">
           {(["ALL", "HELD", "SOLD"] as const).map((s) => (
             <button
               key={s}
               onClick={() => setStatusFilter(s)}
               className={clsx(
                 "rounded-md px-3 py-1 capitalize transition",
-                statusFilter === s ? "bg-accent text-white" : "text-muted hover:text-white"
+                statusFilter === s ? "bg-accent text-base-950" : "text-muted hover:text-white"
               )}
             >
               {s === "ALL" ? "All" : s === "HELD" ? "Held" : "Sold"}
@@ -77,7 +77,7 @@ export function InventoryTable({ rows }: { rows: CardRow[] }) {
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-white/5 text-left text-xs uppercase tracking-wide text-muted">
+            <tr className="border-b border-accent/10 text-left text-xs uppercase tracking-wide text-muted">
               {columns.map((col) => (
                 <th
                   key={col.key}
@@ -95,7 +95,7 @@ export function InventoryTable({ rows }: { rows: CardRow[] }) {
             {sorted.map((row) => (
               <tr
                 key={row.id}
-                className="border-b border-white/5 last:border-0 hover:bg-white/[0.02]"
+                className="border-b border-accent/10 last:border-0 hover:bg-white/[0.02]"
               >
                 <td className="whitespace-nowrap px-5 py-3">
                   <p className="font-medium text-white">{row.player}</p>

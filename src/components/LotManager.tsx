@@ -9,7 +9,7 @@ import type { LotRow } from "@/lib/lots";
 import type { LotsSummary } from "@/lib/types";
 
 const inputClass =
-  "w-full rounded-lg border border-white/10 bg-base-850 px-3 py-2 text-sm text-white placeholder:text-muted focus:border-accent focus:outline-none";
+  "w-full rounded-lg border border-accent/20 bg-base-850 px-3 py-2 text-sm text-white placeholder:text-muted focus:border-accent focus:outline-none";
 const labelClass = "mb-1.5 block text-xs font-medium text-muted";
 
 type LotFormValues = {
@@ -386,7 +386,7 @@ export function LotManager({ lots, summary }: { lots: LotRow[]; summary: LotsSum
         </div>
         <button
           onClick={() => setAddingLot((a) => !a)}
-          className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white transition hover:bg-accent-soft"
+          className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-base-950 transition hover:bg-accent-soft"
         >
           {addingLot ? "Cancel" : "+ Add Lot"}
         </button>
@@ -416,13 +416,13 @@ export function LotManager({ lots, summary }: { lots: LotRow[]; summary: LotsSum
       )}
 
       {addingLot && (
-        <form onSubmit={handleAddLot} className="space-y-4 rounded-xl border border-white/5 bg-base-900 p-5 shadow-panel">
+        <form onSubmit={handleAddLot} className="space-y-4 rounded-xl border border-accent/10 bg-base-900 p-5 shadow-panel">
           <LotFields form={lotForm} setForm={setLotForm} />
           {lotError && <p className="text-sm text-loss">{lotError}</p>}
           <button
             type="submit"
             disabled={lotLoading}
-            className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white transition hover:bg-accent-soft disabled:opacity-50"
+            className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-base-950 transition hover:bg-accent-soft disabled:opacity-50"
           >
             {lotLoading ? "Saving..." : "Add Lot"}
           </button>
@@ -430,7 +430,7 @@ export function LotManager({ lots, summary }: { lots: LotRow[]; summary: LotsSum
       )}
 
       {lots.length === 0 ? (
-        <div className="rounded-xl border border-white/5 bg-base-900 p-10 text-center shadow-panel">
+        <div className="rounded-xl border border-accent/10 bg-base-900 p-10 text-center shadow-panel">
           <p className="text-sm text-muted">No lot buys recorded yet.</p>
         </div>
       ) : (
@@ -442,7 +442,7 @@ export function LotManager({ lots, summary }: { lots: LotRow[]; summary: LotsSum
 
             if (editingLotId === lot.id) {
               return (
-                <div key={lot.id} className="rounded-xl border border-white/5 bg-base-900 p-5 shadow-panel">
+                <div key={lot.id} className="rounded-xl border border-accent/10 bg-base-900 p-5 shadow-panel">
                   <form onSubmit={(e) => handleSaveLotEdit(e, lot.id)} className="space-y-4">
                     <LotFields form={lotEditForm} setForm={setLotEditForm} />
                     {lotEditError && <p className="text-sm text-loss">{lotEditError}</p>}
@@ -450,14 +450,14 @@ export function LotManager({ lots, summary }: { lots: LotRow[]; summary: LotsSum
                       <button
                         type="submit"
                         disabled={lotEditLoading}
-                        className="rounded-lg bg-accent px-3 py-2 text-sm font-medium text-white transition hover:bg-accent-soft disabled:opacity-50"
+                        className="rounded-lg bg-accent px-3 py-2 text-sm font-medium text-base-950 transition hover:bg-accent-soft disabled:opacity-50"
                       >
                         {lotEditLoading ? "Saving..." : "Save"}
                       </button>
                       <button
                         type="button"
                         onClick={() => setEditingLotId(null)}
-                        className="rounded-lg border border-white/10 px-3 py-2 text-sm text-muted hover:text-white"
+                        className="rounded-lg border border-accent/20 px-3 py-2 text-sm text-muted hover:text-white"
                       >
                         Cancel
                       </button>
@@ -468,7 +468,7 @@ export function LotManager({ lots, summary }: { lots: LotRow[]; summary: LotsSum
             }
 
             return (
-              <div key={lot.id} className="rounded-xl border border-white/5 bg-base-900 p-5 shadow-panel">
+              <div key={lot.id} className="rounded-xl border border-accent/10 bg-base-900 p-5 shadow-panel">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <p className="font-medium text-white">{lot.name}</p>
@@ -536,7 +536,7 @@ export function LotManager({ lots, summary }: { lots: LotRow[]; summary: LotsSum
                 </div>
 
                 {!soldOut && (
-                  <div className="mt-4 grid grid-cols-2 gap-4 border-t border-white/5 pt-4 sm:grid-cols-4">
+                  <div className="mt-4 grid grid-cols-2 gap-4 border-t border-accent/10 pt-4 sm:grid-cols-4">
                     <div>
                       <p className="text-xs text-muted">Remaining Cost</p>
                       <p className="font-mono text-sm text-white">{formatCents(lot.remainingCostValue)}</p>
@@ -567,11 +567,11 @@ export function LotManager({ lots, summary }: { lots: LotRow[]; summary: LotsSum
 
                 {lot.notes && <p className="mt-3 text-xs text-muted">{lot.notes}</p>}
 
-                <div className="mt-4 flex flex-wrap items-center gap-4 border-t border-white/5 pt-4">
+                <div className="mt-4 flex flex-wrap items-center gap-4 border-t border-accent/10 pt-4">
                   {!soldOut && (
                     <button
                       onClick={() => (activeSaleLotId === lot.id ? setActiveSaleLotId(null) : openSaleForm(lot.id))}
-                      className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-white/5"
+                      className="rounded-lg border border-accent/20 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-accent/10"
                     >
                       {activeSaleLotId === lot.id ? "Cancel" : "+ Add Sale"}
                     </button>
@@ -586,14 +586,14 @@ export function LotManager({ lots, summary }: { lots: LotRow[]; summary: LotsSum
                 {activeSaleLotId === lot.id && (
                   <form
                     onSubmit={(e) => handleAddSale(e, lot.id)}
-                    className="mt-4 space-y-3 rounded-lg border border-white/10 bg-base-850 p-4"
+                    className="mt-4 space-y-3 rounded-lg border border-accent/20 bg-base-850 p-4"
                   >
                     <SaleFields form={saleForm} setForm={setSaleForm} maxQuantity={lot.remaining} costPerCard={lot.costPerCard} />
                     {saleError && <p className="text-sm text-loss">{saleError}</p>}
                     <button
                       type="submit"
                       disabled={saleLoading}
-                      className="rounded-lg bg-accent px-3 py-2 text-sm font-medium text-white transition hover:bg-accent-soft disabled:opacity-50"
+                      className="rounded-lg bg-accent px-3 py-2 text-sm font-medium text-base-950 transition hover:bg-accent-soft disabled:opacity-50"
                     >
                       {saleLoading ? "Saving..." : "Log Sale"}
                     </button>
@@ -601,13 +601,13 @@ export function LotManager({ lots, summary }: { lots: LotRow[]; summary: LotsSum
                 )}
 
                 {historyShown && lot.sales.length > 0 && (
-                  <ul className="mt-4 divide-y divide-white/5 border-t border-white/5">
+                  <ul className="mt-4 divide-y divide-accent/10 border-t border-accent/10">
                     {lot.sales.map((sale) =>
                       editingSaleId === sale.id ? (
                         <li key={sale.id} className="py-4">
                           <form
                             onSubmit={(e) => handleSaveSaleEdit(e, lot.id, sale.id)}
-                            className="space-y-3 rounded-lg border border-white/10 bg-base-850 p-4"
+                            className="space-y-3 rounded-lg border border-accent/20 bg-base-850 p-4"
                           >
                             <SaleFields
                               form={saleEditForm}
@@ -620,14 +620,14 @@ export function LotManager({ lots, summary }: { lots: LotRow[]; summary: LotsSum
                               <button
                                 type="submit"
                                 disabled={saleEditLoading}
-                                className="rounded-lg bg-accent px-3 py-2 text-sm font-medium text-white transition hover:bg-accent-soft disabled:opacity-50"
+                                className="rounded-lg bg-accent px-3 py-2 text-sm font-medium text-base-950 transition hover:bg-accent-soft disabled:opacity-50"
                               >
                                 {saleEditLoading ? "Saving..." : "Save"}
                               </button>
                               <button
                                 type="button"
                                 onClick={() => setEditingSaleId(null)}
-                                className="rounded-lg border border-white/10 px-3 py-2 text-sm text-muted hover:text-white"
+                                className="rounded-lg border border-accent/20 px-3 py-2 text-sm text-muted hover:text-white"
                               >
                                 Cancel
                               </button>

@@ -4,7 +4,7 @@ import type { CardRow } from "@/lib/rows";
 
 export function TopMovers({ title, rows }: { title: string; rows: CardRow[] }) {
   return (
-    <div className="rounded-xl border border-white/5 bg-base-900 p-5 shadow-panel">
+    <div className="rounded-xl border border-accent/10 bg-base-900 p-5 shadow-panel">
       <h2 className="mb-4 text-sm font-semibold text-white">{title}</h2>
       {rows.length === 0 ? (
         <p className="text-sm text-muted">Not enough data yet.</p>
@@ -14,7 +14,7 @@ export function TopMovers({ title, rows }: { title: string; rows: CardRow[] }) {
             <li key={row.id}>
               <Link
                 href={`/inventory/${row.id}`}
-                className="flex items-center justify-between rounded-lg px-2 py-1.5 -mx-2 transition hover:bg-white/5"
+                className="flex items-center justify-between rounded-lg px-2 py-1.5 -mx-2 transition hover:bg-accent/10"
               >
                 <div>
                   <p className="text-sm text-white">{row.player}</p>

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 const inputClass =
-  "w-full rounded-lg border border-white/10 bg-base-850 px-3 py-2 text-sm text-white placeholder:text-muted focus:border-accent focus:outline-none";
+  "w-full rounded-lg border border-accent/20 bg-base-850 px-3 py-2 text-sm text-white placeholder:text-muted focus:border-accent focus:outline-none";
 const labelClass = "mb-1.5 block text-xs font-medium text-muted";
 
 const SPORTS = ["Baseball", "Basketball", "Football", "Hockey", "Soccer", "Golf", "Other"];
@@ -96,7 +96,7 @@ export function CardForm(props: Props) {
         </p>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-5 rounded-xl border border-white/5 bg-base-900 p-6 shadow-panel">
+      <form onSubmit={handleSubmit} className="space-y-5 rounded-xl border border-accent/10 bg-base-900 p-6 shadow-panel">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="sm:col-span-2">
             <label className={labelClass}>Player *</label>
@@ -155,7 +155,7 @@ export function CardForm(props: Props) {
           )}
         </div>
 
-        <hr className="border-white/5" />
+        <hr className="border-accent/10" />
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
@@ -204,7 +204,7 @@ export function CardForm(props: Props) {
           </div>
         </div>
 
-        <hr className="border-white/5" />
+        <hr className="border-accent/10" />
 
         <div>
           <label className={labelClass}>Image URL</label>
@@ -227,14 +227,14 @@ export function CardForm(props: Props) {
           <button
             type="submit"
             disabled={loading}
-            className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white transition hover:bg-accent-soft disabled:opacity-50"
+            className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-base-950 transition hover:bg-accent-soft disabled:opacity-50"
           >
             {loading ? "Saving..." : props.mode === "edit" ? "Save Changes" : "Save Card"}
           </button>
           <button
             type="button"
             onClick={() => router.back()}
-            className="rounded-lg border border-white/10 px-4 py-2 text-sm text-muted transition hover:text-white"
+            className="rounded-lg border border-accent/20 px-4 py-2 text-sm text-muted transition hover:text-white"
           >
             Cancel
           </button>

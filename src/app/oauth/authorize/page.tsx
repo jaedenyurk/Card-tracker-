@@ -5,7 +5,7 @@ export const dynamic = "force-dynamic";
 function ErrorScreen({ title, message }: { title: string; message: string }) {
   return (
     <div className="flex min-h-screen items-center justify-center bg-base-950 px-4">
-      <div className="w-full max-w-sm rounded-xl border border-white/5 bg-base-900 p-8 text-center shadow-panel">
+      <div className="w-full max-w-sm rounded-xl border border-accent/10 bg-base-900 p-8 text-center shadow-panel">
         <h1 className="text-lg font-semibold text-loss">{title}</h1>
         <p className="mt-2 text-sm text-muted">{message}</p>
       </div>
@@ -44,9 +44,9 @@ export default async function AuthorizePage({
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-base-950 px-4">
-      <div className="w-full max-w-sm rounded-xl border border-white/5 bg-base-900 p-8 shadow-panel">
+      <div className="w-full max-w-sm rounded-xl border border-accent/20 bg-base-900 bg-holo p-8 shadow-panel">
         <div className="mb-6 text-center">
-          <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-accent/20 text-accent font-bold">
+          <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-foil text-base-950 font-bold">
             $
           </div>
           <h1 className="text-lg font-semibold text-white">Authorize {client.clientName || "this app"}</h1>
@@ -67,7 +67,7 @@ export default async function AuthorizePage({
             type="submit"
             name="decision"
             value="allow"
-            className="w-full rounded-lg bg-accent px-4 py-2.5 text-sm font-medium text-white transition hover:bg-accent-soft"
+            className="w-full rounded-lg bg-accent px-4 py-2.5 text-sm font-medium text-base-950 transition hover:bg-accent-soft"
           >
             Allow
           </button>
@@ -75,7 +75,7 @@ export default async function AuthorizePage({
             type="submit"
             name="decision"
             value="deny"
-            className="w-full rounded-lg border border-white/10 px-4 py-2.5 text-sm text-muted transition hover:text-white"
+            className="w-full rounded-lg border border-accent/20 px-4 py-2.5 text-sm text-muted transition hover:text-white"
           >
             Deny
           </button>

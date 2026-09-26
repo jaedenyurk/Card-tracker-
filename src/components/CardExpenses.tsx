@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { formatCents } from "@/lib/calculations";
 
 const inputClass =
-  "w-full rounded-lg border border-white/10 bg-base-850 px-3 py-2 text-sm text-white placeholder:text-muted focus:border-accent focus:outline-none";
+  "w-full rounded-lg border border-accent/20 bg-base-850 px-3 py-2 text-sm text-white placeholder:text-muted focus:border-accent focus:outline-none";
 const labelClass = "mb-1.5 block text-xs font-medium text-muted";
 
 const CATEGORIES = ["Grading", "Shipping", "Supplies", "Inventory", "Fees", "Travel", "Software", "Other"];
@@ -57,7 +57,7 @@ export function CardExpenses({ cardId, expenses }: { cardId: string; expenses: E
   }
 
   return (
-    <div className="rounded-xl border border-white/5 bg-base-900 p-5 shadow-panel">
+    <div className="rounded-xl border border-accent/10 bg-base-900 p-5 shadow-panel">
       <div className="mb-4 flex items-center justify-between">
         <h2 className="text-sm font-semibold text-white">Linked Expenses</h2>
         <button onClick={() => setAdding((a) => !a)} className="text-xs text-accent hover:underline">
@@ -66,7 +66,7 @@ export function CardExpenses({ cardId, expenses }: { cardId: string; expenses: E
       </div>
 
       {adding && (
-        <form onSubmit={handleAdd} className="mb-4 space-y-3 rounded-lg border border-white/10 p-4">
+        <form onSubmit={handleAdd} className="mb-4 space-y-3 rounded-lg border border-accent/20 p-4">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
               <label className={labelClass}>Date</label>
@@ -118,7 +118,7 @@ export function CardExpenses({ cardId, expenses }: { cardId: string; expenses: E
           <button
             type="submit"
             disabled={loading}
-            className="rounded-lg bg-accent px-3 py-2 text-sm font-medium text-white transition hover:bg-accent-soft disabled:opacity-50"
+            className="rounded-lg bg-accent px-3 py-2 text-sm font-medium text-base-950 transition hover:bg-accent-soft disabled:opacity-50"
           >
             {loading ? "Saving..." : "Add"}
           </button>
@@ -128,7 +128,7 @@ export function CardExpenses({ cardId, expenses }: { cardId: string; expenses: E
       {expenses.length === 0 ? (
         <p className="text-sm text-muted">No expenses linked to this card yet.</p>
       ) : (
-        <ul className="divide-y divide-white/5">
+        <ul className="divide-y divide-accent/10">
           {expenses.map((e) => (
             <li key={e.id} className="flex items-center justify-between py-2.5">
               <div>
