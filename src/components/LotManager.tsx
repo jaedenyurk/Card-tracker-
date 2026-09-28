@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import clsx from "clsx";
-import { formatCents, formatPercent } from "@/lib/calculations";
+import { formatCents, formatPercent, recomputeLotSaleProfits } from "@/lib/calculations";
 import { KpiCard } from "@/components/KpiCard";
 import type { LotRow } from "@/lib/lots";
 import type { LotsSummary } from "@/lib/types";
@@ -142,18 +142,28 @@ function SaleFields({
   form,
   setForm,
   maxQuantity,
-  costPerCard,
+  lot,
+  excludeSaleId,
 }: {
   form: SaleFormValues;
   setForm: (updater: (f: SaleFormValues) => SaleFormValues) => void;
   maxQuantity: number;
-  costPerCard: number; // cents
+  lot: LotRow;
+  excludeSaleId?: string;
 }) {
   const quantity = Number.parseInt(form.quantity, 10);
   const salePrice = Number.parseFloat(form.salePrice);
-  const hasPreview = Number.isFinite(quantity) && quantity > 0 && Number.isFinite(salePrice);
-  const costBasisCents = hasPreview ? Math.round(quantity * costPerCard) : 0;
-  const profitCents = hasPreview ? Math.round(salePrice * 100) - costBasisCents : 0;
+  const hasPreview = Number.isFinite(quantity) && quantity > 0 && Number.isFinite(salePrice) && form.saleDate !== "";
+  let profitCents = 0;
+  let costRecoveredCents = 0;
+  if (hasPreview) {
+    const salePriceCents = Math.round(salePrice * 100);
+    const otherSales = lot.sales.filter((s) => s.id !== excludeSaleId);
+    const candidate = { id: "__preview__", lotId: lot.id, quantity, profit: 0, saleDate: form.saleDate, salePrice: salePriceCents };
+    const profitMap = recomputeLotSaleProfits(lot, [...otherSales, candidate]);
+    profitCents = profitMap.get("__preview__") ?? 0;
+    costRecoveredCents = salePriceCents - profitCents;
+  }
 
   return (
     <div className="space-y-3">
@@ -208,11 +218,11 @@ function SaleFields({
       <p className="text-xs text-muted">
         {hasPreview ? (
           <>
-            Cost basis for {quantity} card{quantity === 1 ? "" : "s"}: {formatCents(costBasisCents)} → profit{" "}
+            Recovers {formatCents(costRecoveredCents)} of the lot's {formatCents(lot.totalCost)} cost → profit{" "}
             <span className={profitCents >= 0 ? "text-gain" : "text-loss"}>{formatCents(profitCents)}</span>
           </>
         ) : (
-          `Profit is computed automatically: sale price minus ${formatCents(Math.round(costPerCard))}/card cost.`
+          "Profit is computed automatically: proceeds pay down the lot's total cost first, in date order — only what's left over after that counts as profit."
         )}
       </p>
     </div>
@@ -588,7 +598,7 @@ export function LotManager({ lots, summary }: { lots: LotRow[]; summary: LotsSum
                     onSubmit={(e) => handleAddSale(e, lot.id)}
                     className="mt-4 space-y-3 rounded-lg border border-accent/20 bg-base-850 p-4"
                   >
-                    <SaleFields form={saleForm} setForm={setSaleForm} maxQuantity={lot.remaining} costPerCard={lot.costPerCard} />
+                    <SaleFields form={saleForm} setForm={setSaleForm} maxQuantity={lot.remaining} lot={lot} />
                     {saleError && <p className="text-sm text-loss">{saleError}</p>}
                     <button
                       type="submit"
@@ -613,7 +623,8 @@ export function LotManager({ lots, summary }: { lots: LotRow[]; summary: LotsSum
                               form={saleEditForm}
                               setForm={setSaleEditForm}
                               maxQuantity={lot.remaining + sale.quantity}
-                              costPerCard={lot.costPerCard}
+                              lot={lot}
+                              excludeSaleId={sale.id}
                             />
                             {saleEditError && <p className="text-sm text-loss">{saleEditError}</p>}
                             <div className="flex gap-2">
@@ -650,8 +661,12 @@ export function LotManager({ lots, summary }: { lots: LotRow[]; summary: LotsSum
                                 year: "numeric",
                                 timeZone: "UTC",
                               })}
-                              {" · cost "}
-                              {formatCents(Math.round(sale.quantity * lot.costPerCard))}
+                              {sale.salePrice != null && (
+                                <>
+                                  {" · recovered "}
+                                  {formatCents(sale.salePrice - sale.profit)}
+                                </>
+                              )}
                               {sale.notes ? ` · ${sale.notes}` : ""}
                             </p>
                           </div>

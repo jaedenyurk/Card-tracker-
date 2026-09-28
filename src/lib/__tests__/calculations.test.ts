@@ -17,7 +17,7 @@ import {
   lotCostPerCard,
   lotRemainingCostValue,
   lotUnrealizedProfit,
-  lotSaleProfit,
+  recomputeLotSaleProfits,
   lotRealizedProfit,
   lotROI,
   computeLotsSummary,
@@ -352,24 +352,60 @@ test("lotCostPerCard is 0 for a lot with no cards (avoids divide by zero)", () =
   assert.equal(lotCostPerCard(l), 0);
 });
 
-test("lotSaleProfit subtracts this sale's share of the lot's cost from the sale price", () => {
-  // 10 cards for $10000 -> $1000/card
+function recomputeSale(overrides: { id: string; quantity?: number; profit?: number; saleDate: string; salePrice: number | null }) {
+  return { quantity: 1, profit: 0, ...overrides };
+}
+
+test("recomputeLotSaleProfits: no sale is profitable until cumulative proceeds exceed the lot's cost", () => {
+  const l = lot({ id: "l1", totalCards: 10, totalCost: 73800 }); // $738 total cost
+  const sales = [
+    recomputeSale({ id: "s1", saleDate: "2026-09-01", salePrice: 20000 }),
+    recomputeSale({ id: "s2", saleDate: "2026-09-02", salePrice: 30000 }),
+    recomputeSale({ id: "s3", saleDate: "2026-09-03", salePrice: 25000 }),
+    recomputeSale({ id: "s4", saleDate: "2026-09-04", salePrice: 10000 }),
+  ];
+  const profits = recomputeLotSaleProfits(l, sales);
+  // Cumulative proceeds: 200, 500, 750, 850 (in dollars) vs $738 cost.
+  assert.equal(profits.get("s1"), 0);
+  assert.equal(profits.get("s2"), 0);
+  assert.equal(profits.get("s3"), 1200); // 750 crosses 738 by $12
+  assert.equal(profits.get("s4"), 10000); // fully past cost recovery, all profit
+});
+
+test("recomputeLotSaleProfits orders by saleDate, not array order", () => {
+  const l = lot({ id: "l1", totalCards: 10, totalCost: 10000 }); // $100 cost
+  const sales = [
+    recomputeSale({ id: "later", saleDate: "2026-09-05", salePrice: 6000 }),
+    recomputeSale({ id: "earlier", saleDate: "2026-09-01", salePrice: 6000 }),
+  ];
+  const profits = recomputeLotSaleProfits(l, sales);
+  // Chronologically "earlier" hits first: 60 recovers toward the $100 cost, no profit.
+  // "later" then pushes cumulative to 120, so it earns the $20 over cost.
+  assert.equal(profits.get("earlier"), 0);
+  assert.equal(profits.get("later"), 2000);
+});
+
+test("recomputeLotSaleProfits: a sale can be a mix of cost recovery and profit", () => {
+  const l = lot({ id: "l1", totalCards: 5, totalCost: 5000 }); // $50 cost
+  const sales = [recomputeSale({ id: "s1", saleDate: "2026-09-01", salePrice: 8000 })];
+  const profits = recomputeLotSaleProfits(l, sales);
+  assert.equal(profits.get("s1"), 3000); // 80 - 50 = 30 profit
+});
+
+test("recomputeLotSaleProfits falls back to an implied sale price for legacy sales with no salePrice", () => {
+  const l = lot({ id: "l1", totalCards: 10, totalCost: 1000 }); // $1/card cost-per-card
+  // Legacy row: no salePrice, only a previously stored profit of 800 for 3 cards.
+  // Implied sale price = 800 + (3 * 100) = 1100, which now exceeds the lot's
+  // $1000 total cost by 100 once run through the new waterfall.
+  const sales = [recomputeSale({ id: "legacy", quantity: 3, profit: 800, saleDate: "2026-09-01", salePrice: null })];
+  const profits = recomputeLotSaleProfits(l, sales);
+  assert.equal(profits.get("legacy"), 100);
+});
+
+test("recomputeLotSaleProfits returns an empty map for a lot with no sales", () => {
   const l = lot({ id: "l1", totalCards: 10, totalCost: 10000 });
-  // Sold 3 cards for $4500: cost basis = 3 * 1000 = 3000, profit = 4500 - 3000 = 1500
-  assert.equal(lotSaleProfit(l, 3, 4500), 1500);
-});
-
-test("lotSaleProfit can be negative when the sale price doesn't cover cost", () => {
-  const l = lot({ id: "l1", totalCards: 10, totalCost: 10000 }); // $1000/card
-  // Sold 2 cards for $1500: cost basis = 2000, profit = 1500 - 2000 = -500 (a loss)
-  assert.equal(lotSaleProfit(l, 2, 1500), -500);
-});
-
-test("lotSaleProfit rounds a fractional cost-per-card to the nearest cent", () => {
-  // 3 cards for $1000 -> $333.33/card
-  const l = lot({ id: "l1", totalCards: 3, totalCost: 1000 });
-  // 1 card sold for $500: cost basis rounds to 333, profit = 500 - 333 = 167
-  assert.equal(lotSaleProfit(l, 1, 500), 167);
+  const profits = recomputeLotSaleProfits(l, []);
+  assert.equal(profits.size, 0);
 });
 
 test("lotRealizedProfit sums manually-entered profit for that lot's sales", () => {

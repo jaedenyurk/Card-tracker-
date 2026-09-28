@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { dollarsToCents } from "@/lib/money";
-import { lotSaleProfit } from "@/lib/calculations";
+import { recomputeLotSaleProfits } from "@/lib/calculations";
 
 export const dynamic = "force-dynamic";
 
@@ -30,18 +30,26 @@ export async function POST(req: Request, { params }: Params) {
     return NextResponse.json({ error: "Sale date is required" }, { status: 400 });
   }
 
-  const profit = lotSaleProfit(lot, quantity, salePrice);
-
-  const sale = await prisma.lotSale.create({
+  const created = await prisma.lotSale.create({
     data: {
       lotId: lot.id,
       saleDate: new Date(body.saleDate),
       quantity,
       salePrice,
-      profit,
+      profit: 0, // placeholder; recomputed below alongside every other sale in the lot
       notes: body.notes || null,
     },
   });
 
+  // Adding a sale can shift how much of the lot's cost every other sale in
+  // chronological order has recovered, so every sale's profit is recomputed
+  // and persisted together, not just the new one.
+  const allSales = [...lot.sales, created];
+  const profitBySaleId = recomputeLotSaleProfits(lot, allSales);
+  await prisma.$transaction(
+    allSales.map((s) => prisma.lotSale.update({ where: { id: s.id }, data: { profit: profitBySaleId.get(s.id) ?? 0 } }))
+  );
+
+  const sale = await prisma.lotSale.findUniqueOrThrow({ where: { id: created.id } });
   return NextResponse.json(sale, { status: 201 });
 }

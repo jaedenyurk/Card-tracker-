@@ -6,8 +6,7 @@ import {
   computeCashFlowSummaryForPeriod,
   computePortfolioSummaryForPeriod,
   rankByROI,
-  lotCostPerCard,
-  lotSaleProfit,
+  recomputeLotSaleProfits,
   type PeriodKey,
 } from "./calculations";
 import { toCardRow } from "./rows";
@@ -249,7 +248,7 @@ export function registerTools(server: McpServer): void {
     {
       title: "Log Lot Sale",
       description:
-        "Record some number of cards sold out of a lot for a sale price. Profit is computed automatically as sale price minus this sale's share of the lot's cost (quantity × cost per card) — never the raw sale price. Call list_lots first to find the lot's id, cost per card, and how many cards remain.",
+        "Record some number of cards sold out of a lot for a sale price. Profit is computed automatically using a cost-recovery method: sale proceeds pay down the lot's total cost in chronological order across all of its sales, and only proceeds beyond that point count as profit — never the raw sale price. Call list_lots first to find the lot's id and how many cards remain.",
       inputSchema: z.object({
         lotId: z.string(),
         saleDate: z.string().describe("YYYY-MM-DD"),
@@ -266,17 +265,24 @@ export function registerTools(server: McpServer): void {
       if (quantity > remaining) return errorResult(`Only ${remaining} card(s) remain in "${lot.name}".`);
       const salePriceCents = dollarsToCents(salePrice);
       if (salePriceCents == null) return errorResult("salePrice is required.");
-      const costBasisCents = Math.round(quantity * lotCostPerCard(lot));
-      const profitCents = lotSaleProfit(lot, quantity, salePriceCents);
-      await prisma.lotSale.create({
-        data: { lotId, saleDate: new Date(saleDate), quantity, salePrice: salePriceCents, profit: profitCents, notes: notes || null },
+
+      const created = await prisma.lotSale.create({
+        data: { lotId, saleDate: new Date(saleDate), quantity, salePrice: salePriceCents, profit: 0, notes: notes || null },
       });
+
+      // This sale can shift how much of the lot's cost every other sale has
+      // recovered in chronological order, so all of them get recomputed together.
+      const allSales = [...lot.sales, created];
+      const profitBySaleId = recomputeLotSaleProfits(lot, allSales);
+      await prisma.$transaction(
+        allSales.map((s) => prisma.lotSale.update({ where: { id: s.id }, data: { profit: profitBySaleId.get(s.id) ?? 0 } }))
+      );
+
       return json({
         lot: lot.name,
         quantitySold: quantity,
         salePrice: centsToDollars(salePriceCents),
-        costBasis: centsToDollars(costBasisCents),
-        profit: centsToDollars(profitCents),
+        profit: centsToDollars(profitBySaleId.get(created.id) ?? 0),
         remainingAfter: remaining - quantity,
       });
     }

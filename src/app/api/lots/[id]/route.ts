@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { dollarsToCents } from "@/lib/money";
+import { recomputeLotSaleProfits } from "@/lib/calculations";
 
 export const dynamic = "force-dynamic";
 
@@ -48,6 +49,18 @@ export async function PATCH(req: Request, { params }: Params) {
   }
 
   const updated = await prisma.lot.update({ where: { id: params.id }, data });
+
+  // Changing totalCost shifts the cost-recovery threshold every sale is
+  // measured against, so all of the lot's sales need their profit redone.
+  if ("totalCost" in data && existing.sales.length > 0) {
+    const profitBySaleId = recomputeLotSaleProfits(updated, existing.sales);
+    await prisma.$transaction(
+      existing.sales.map((s) =>
+        prisma.lotSale.update({ where: { id: s.id }, data: { profit: profitBySaleId.get(s.id) ?? 0 } })
+      )
+    );
+  }
+
   return NextResponse.json(updated);
 }
 

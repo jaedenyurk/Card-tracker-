@@ -379,14 +379,59 @@ export function lotUnrealizedProfit(lot: LotLike, sales: LotSaleLike[]): number 
   return lot.estValue - lotRemainingCostValue(lot, sales);
 }
 
+// Sale rows carry saleDate/salePrice at the row layer (see toLotRow in lots.ts),
+// same convention as LotSaleRow — recomputeLotSaleProfits needs both to order
+// sales and know what they actually sold for.
+// Deliberately doesn't require lotId: every call site already scopes `sales`
+// to a single lot's own sales (a Prisma include, a LotRow's own .sales list,
+// or a freshly-fetched findMany), so no filtering happens here.
+type LotSaleForRecompute = {
+  id: string;
+  quantity: number;
+  profit: number;
+  saleDate: Date | string;
+  salePrice: number | null;
+};
+
 /**
- * Profit for a single lot sale: the sale price minus that sale's share of the
- * lot's cost (quantity × cost per card, rounded to the nearest cent). This is
- * the only place a lot sale's profit gets computed — callers must never take
- * the raw sale price as profit, or the card's cost is left out of the math.
+ * Recomputes profit for every sale against a lot using a cost-recovery
+ * ("waterfall") method: sale proceeds are applied against the lot's total
+ * cost in chronological order, so nothing is profit until the lot's full
+ * cost has been recovered — every dollar after that is pure profit. This
+ * replaces the old per-sale average-cost-per-card allocation.
+ *
+ * Because a sale's profit now depends on every other sale in the lot (their
+ * order and amounts), callers must recompute and persist ALL of a lot's
+ * sales whenever any one of them — or the lot's totalCost — changes, not
+ * just the sale being added/edited/deleted. `sales` must contain only sales
+ * belonging to this lot.
+ *
+ * Legacy sales recorded before salePrice existed fall back to their
+ * previously-stored profit to reconstruct an implied sale price (same
+ * convention the edit-sale form already uses), so old rows still
+ * participate correctly.
  */
-export function lotSaleProfit(lot: LotLike, quantity: number, salePriceCents: number): number {
-  return salePriceCents - Math.round(quantity * lotCostPerCard(lot));
+export function recomputeLotSaleProfits(
+  lot: LotLike,
+  sales: LotSaleForRecompute[]
+): Map<string, number> {
+  const costPerCard = lotCostPerCard(lot);
+  const ordered = [...sales].sort((a, b) => {
+    const diff = toDate(a.saleDate).getTime() - toDate(b.saleDate).getTime();
+    return diff !== 0 ? diff : a.id.localeCompare(b.id);
+  });
+
+  const result = new Map<string, number>();
+  let cumulativeProceeds = 0;
+  let cumulativeProfit = 0;
+  for (const sale of ordered) {
+    const salePrice = sale.salePrice ?? sale.profit + Math.round(sale.quantity * costPerCard);
+    cumulativeProceeds += salePrice;
+    const newCumulativeProfit = Math.max(0, cumulativeProceeds - lot.totalCost);
+    result.set(sale.id, newCumulativeProfit - cumulativeProfit);
+    cumulativeProfit = newCumulativeProfit;
+  }
+  return result;
 }
 
 /** Sum of manually-entered profit across every sale recorded against a lot. */

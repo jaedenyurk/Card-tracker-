@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { dollarsToCents } from "@/lib/money";
-import { lotCostPerCard, lotSaleProfit } from "@/lib/calculations";
+import { recomputeLotSaleProfits } from "@/lib/calculations";
 
 export const dynamic = "force-dynamic";
 
@@ -21,9 +21,8 @@ export async function PATCH(req: Request, { params }: Params) {
   if ("saleDate" in body && body.saleDate) data.saleDate = new Date(body.saleDate);
   if ("notes" in body) data.notes = body.notes || null;
 
-  let quantity = existing.quantity;
   if ("quantity" in body) {
-    quantity = Number.parseInt(body.quantity, 10);
+    const quantity = Number.parseInt(body.quantity, 10);
     if (!Number.isFinite(quantity) || quantity <= 0) {
       return NextResponse.json({ error: "Quantity must be a positive number" }, { status: 400 });
     }
@@ -37,24 +36,24 @@ export async function PATCH(req: Request, { params }: Params) {
     data.quantity = quantity;
   }
 
-  // Profit is always re-derived from sale price and this sale's share of the
-  // lot's cost — never taken directly from user input. Legacy sales logged
-  // before salePrice existed fall back to their originally-stored profit to
-  // reconstruct an implied sale price, so editing one for the first time
-  // doesn't change its numbers unless you actually change something.
-  if ("salePrice" in body || "quantity" in body) {
-    const impliedExistingSalePrice = existing.salePrice ?? existing.profit + Math.round(existing.quantity * lotCostPerCard(lot));
-    let salePrice = impliedExistingSalePrice;
-    if ("salePrice" in body) {
-      const cents = dollarsToCents(body.salePrice);
-      if (cents == null) return NextResponse.json({ error: "Sale price is required" }, { status: 400 });
-      salePrice = cents;
-    }
-    data.salePrice = salePrice;
-    data.profit = lotSaleProfit(lot, quantity, salePrice);
+  if ("salePrice" in body) {
+    const cents = dollarsToCents(body.salePrice);
+    if (cents == null) return NextResponse.json({ error: "Sale price is required" }, { status: 400 });
+    data.salePrice = cents;
   }
 
-  const updated = await prisma.lotSale.update({ where: { id: params.saleId }, data });
+  await prisma.lotSale.update({ where: { id: params.saleId }, data });
+
+  // A sale's profit depends on every other sale in the lot's chronological
+  // order (cost-recovery waterfall), so any edit here — date, quantity, or
+  // price — requires recomputing and persisting all of the lot's sales.
+  const freshSales = await prisma.lotSale.findMany({ where: { lotId: lot.id } });
+  const profitBySaleId = recomputeLotSaleProfits(lot, freshSales);
+  await prisma.$transaction(
+    freshSales.map((s) => prisma.lotSale.update({ where: { id: s.id }, data: { profit: profitBySaleId.get(s.id) ?? 0 } }))
+  );
+
+  const updated = await prisma.lotSale.findUniqueOrThrow({ where: { id: params.saleId } });
   return NextResponse.json(updated);
 }
 
@@ -64,5 +63,19 @@ export async function DELETE(_req: Request, { params }: Params) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
   await prisma.lotSale.delete({ where: { id: params.saleId } });
+
+  // Removing a sale shifts how much of the lot's cost the remaining sales
+  // have recovered in chronological order, so they need recomputing too.
+  const lot = await prisma.lot.findUnique({ where: { id: params.id } });
+  const remainingSales = await prisma.lotSale.findMany({ where: { lotId: params.id } });
+  if (lot && remainingSales.length > 0) {
+    const profitBySaleId = recomputeLotSaleProfits(lot, remainingSales);
+    await prisma.$transaction(
+      remainingSales.map((s) =>
+        prisma.lotSale.update({ where: { id: s.id }, data: { profit: profitBySaleId.get(s.id) ?? 0 } })
+      )
+    );
+  }
+
   return NextResponse.json({ ok: true });
 }
