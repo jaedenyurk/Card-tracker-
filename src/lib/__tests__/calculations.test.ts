@@ -455,10 +455,50 @@ test("computeLotsSummary handles no lots without dividing by zero", () => {
   assert.equal(summary.percentSold, null);
 });
 
-test("lotRemainingCostValue is the cost basis of the not-yet-sold cards", () => {
-  const l = lot({ id: "l1", totalCards: 10, totalCost: 10000 }); // $1000/card
-  const sales: LotSaleLike[] = [lotSale({ id: "s1", lotId: "l1", quantity: 4 })];
-  assert.equal(lotRemainingCostValue(l, sales), 6000); // 6 remaining * 1000
+test("lotRemainingCostValue is the lot's total cost minus what's been sold, not remaining cards × cost per card", () => {
+  const l = lot({ id: "l1", totalCards: 10, totalCost: 10000 }); // $1000/card average
+  // 8 cards sold for just $3000 total — per-card math would say 2 × 1000 = 2000 remains,
+  // but $7000 of the lot's cost is actually still unrecovered.
+  const sales: LotSaleLike[] = [
+    lotSale({ id: "s1", lotId: "l1", quantity: 5, salePrice: 2000 }),
+    lotSale({ id: "s2", lotId: "l1", quantity: 3, salePrice: 1000 }),
+  ];
+  assert.equal(lotRemainingCostValue(l, sales), 7000);
+});
+
+test("lotRemainingCostValue is the full cost when nothing has sold", () => {
+  const l = lot({ id: "l1", totalCards: 10, totalCost: 10000 });
+  assert.equal(lotRemainingCostValue(l, []), 10000);
+});
+
+test("lotRemainingCostValue floors at zero once sales have recovered the whole cost", () => {
+  const l = lot({ id: "l1", totalCards: 10, totalCost: 10000 });
+  const sales: LotSaleLike[] = [lotSale({ id: "s1", lotId: "l1", quantity: 2, salePrice: 12000 })];
+  assert.equal(lotRemainingCostValue(l, sales), 0); // 8 cards left, but they carry no remaining cost
+});
+
+test("lotRemainingCostValue is zero when no cards remain, even if sales didn't recover the full cost", () => {
+  const l = lot({ id: "l1", totalCards: 2, totalCost: 10000 });
+  const sales: LotSaleLike[] = [lotSale({ id: "s1", lotId: "l1", quantity: 2, salePrice: 4000 })];
+  assert.equal(lotRemainingCostValue(l, sales), 0);
+});
+
+test("lotRemainingCostValue ignores other lots' sales", () => {
+  const l = lot({ id: "l1", totalCards: 10, totalCost: 10000 });
+  const sales: LotSaleLike[] = [
+    lotSale({ id: "s1", lotId: "l1", quantity: 1, salePrice: 1000 }),
+    lotSale({ id: "s2", lotId: "other", quantity: 1, salePrice: 9000 }),
+  ];
+  assert.equal(lotRemainingCostValue(l, sales), 9000);
+});
+
+test("computePortfolioSummary uses the cost-recovery remaining cost for lots, not remaining cards × cost per card", () => {
+  const l = lot({ id: "l1", totalCards: 10, totalCost: 10000, estValue: 6000 });
+  const sales: LotSaleLike[] = [lotSale({ id: "s1", lotId: "l1", quantity: 8, salePrice: 3000 })];
+  const summary = computePortfolioSummary([], [], [l], sales);
+  assert.equal(summary.inventoryCostValue, 7000); // 10000 - 3000, not 2 × 1000
+  assert.equal(summary.inventoryMarketValue, 6000);
+  assert.equal(summary.unrealizedProfit, -1000);
 });
 
 test("lotUnrealizedProfit is estValue minus the remaining cost basis", () => {

@@ -365,9 +365,30 @@ export function lotCostPerCard(lot: LotLike): number {
   return lot.totalCards > 0 ? lot.totalCost / lot.totalCards : 0;
 }
 
-/** Cost basis of a lot's not-yet-sold cards (cents). */
+/**
+ * What a sale actually brought in (cents). Legacy sales recorded before
+ * salePrice existed fall back to their previously-stored profit to
+ * reconstruct an implied price (same convention the edit-sale form uses).
+ */
+function lotSaleProceeds(
+  lot: LotLike,
+  sale: { quantity: number; profit: number; salePrice?: number | null }
+): number {
+  return sale.salePrice ?? sale.profit + Math.round(sale.quantity * lotCostPerCard(lot));
+}
+
+/**
+ * Cost still tied up in a lot's unsold cards (cents): the lot's total cost
+ * minus everything sold so far, floored at zero. Matches the cost-recovery
+ * method used for sale profit — once sales have paid back the full cost,
+ * what's left carries no remaining cost. Zero once no cards remain.
+ */
 export function lotRemainingCostValue(lot: LotLike, sales: LotSaleLike[]): number {
-  return Math.round(lotRemainingCards(lot, sales) * lotCostPerCard(lot));
+  if (lotRemainingCards(lot, sales) <= 0) return 0;
+  const proceeds = sales
+    .filter((s) => s.lotId === lot.id)
+    .reduce((sum, s) => sum + lotSaleProceeds(lot, s), 0);
+  return Math.max(0, lot.totalCost - proceeds);
 }
 
 /**
@@ -415,7 +436,6 @@ export function recomputeLotSaleProfits(
   lot: LotLike,
   sales: LotSaleForRecompute[]
 ): Map<string, number> {
-  const costPerCard = lotCostPerCard(lot);
   const ordered = [...sales].sort((a, b) => {
     const diff = toDate(a.saleDate).getTime() - toDate(b.saleDate).getTime();
     return diff !== 0 ? diff : a.id.localeCompare(b.id);
@@ -425,8 +445,7 @@ export function recomputeLotSaleProfits(
   let cumulativeProceeds = 0;
   let cumulativeProfit = 0;
   for (const sale of ordered) {
-    const salePrice = sale.salePrice ?? sale.profit + Math.round(sale.quantity * costPerCard);
-    cumulativeProceeds += salePrice;
+    cumulativeProceeds += lotSaleProceeds(lot, sale);
     const newCumulativeProfit = Math.max(0, cumulativeProceeds - lot.totalCost);
     result.set(sale.id, newCumulativeProfit - cumulativeProfit);
     cumulativeProfit = newCumulativeProfit;

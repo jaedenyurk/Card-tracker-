@@ -74,6 +74,7 @@ export interface LotSaleLike {
   lotId: string;
   quantity: number;
   profit: number; // cents
+  salePrice?: number | null; // cents; null/absent only for legacy sales logged before salePrice existed
 }
 
 export interface LotsSummary {
