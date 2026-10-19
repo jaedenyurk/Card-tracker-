@@ -9,7 +9,7 @@ import type { LotRow } from "@/lib/lots";
 import type { LotsSummary } from "@/lib/types";
 
 const inputClass =
-  "w-full rounded-lg border border-accent/20 bg-base-850 px-3 py-2 text-sm text-white placeholder:text-muted focus:border-accent focus:outline-none";
+  "w-full rounded-[14px] border border-line bg-card px-3.5 py-2.5 text-sm text-fg placeholder:text-muted transition-ui focus:border-gold focus:outline-none focus:ring-4 focus:ring-gold/[.22]";
 const labelClass = "mb-1.5 block text-xs font-medium text-muted";
 
 type LotFormValues = {
@@ -219,7 +219,7 @@ function SaleFields({
         {hasPreview ? (
           <>
             Recovers {formatCents(costRecoveredCents)} of the lot's {formatCents(lot.totalCost)} cost → profit{" "}
-            <span className={profitCents >= 0 ? "text-gain" : "text-loss"}>{formatCents(profitCents)}</span>
+            <span className={profitCents >= 0 ? "text-ok-text" : "text-bad-text"}>{formatCents(profitCents)}</span>
           </>
         ) : (
           "Profit is computed automatically: proceeds pay down the lot's total cost first, in date order — only what's left over after that counts as profit."
@@ -388,15 +388,16 @@ export function LotManager({ lots, summary }: { lots: LotRow[]; summary: LotsSum
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+    <div className="space-y-5">
+      <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h2 className="text-base font-semibold text-white">Large Lot Buys</h2>
-          <p className="text-sm text-muted">Bulk purchases tracked as a pool of cards, sold off over time</p>
+          <p className="eyebrow">Bulk buys</p>
+          <h2 className="mt-2.5 font-display text-2xl font-extrabold tracking-[-0.03em] text-fg">Large Lot Buys</h2>
+          <p className="mt-1.5 text-sm text-muted">Bulk purchases tracked as a pool of cards, sold off over time</p>
         </div>
         <button
           onClick={() => setAddingLot((a) => !a)}
-          className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-base-950 transition hover:bg-accent-soft"
+          className="btn-gold"
         >
           {addingLot ? "Cancel" : "+ Add Lot"}
         </button>
@@ -426,13 +427,13 @@ export function LotManager({ lots, summary }: { lots: LotRow[]; summary: LotsSum
       )}
 
       {addingLot && (
-        <form onSubmit={handleAddLot} className="space-y-4 rounded-xl border border-accent/10 bg-base-900 p-5 shadow-panel">
+        <form onSubmit={handleAddLot} className="space-y-4 card p-6">
           <LotFields form={lotForm} setForm={setLotForm} />
-          {lotError && <p className="text-sm text-loss">{lotError}</p>}
+          {lotError && <p className="text-sm text-bad-text">{lotError}</p>}
           <button
             type="submit"
             disabled={lotLoading}
-            className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-base-950 transition hover:bg-accent-soft disabled:opacity-50"
+            className="btn-gold disabled:opacity-50"
           >
             {lotLoading ? "Saving..." : "Add Lot"}
           </button>
@@ -440,7 +441,7 @@ export function LotManager({ lots, summary }: { lots: LotRow[]; summary: LotsSum
       )}
 
       {lots.length === 0 ? (
-        <div className="rounded-xl border border-accent/10 bg-base-900 p-10 text-center shadow-panel">
+        <div className="card p-10 text-center">
           <p className="text-sm text-muted">No lot buys recorded yet.</p>
         </div>
       ) : (
@@ -452,22 +453,22 @@ export function LotManager({ lots, summary }: { lots: LotRow[]; summary: LotsSum
 
             if (editingLotId === lot.id) {
               return (
-                <div key={lot.id} className="rounded-xl border border-accent/10 bg-base-900 p-5 shadow-panel">
+                <div key={lot.id} className="card p-6">
                   <form onSubmit={(e) => handleSaveLotEdit(e, lot.id)} className="space-y-4">
                     <LotFields form={lotEditForm} setForm={setLotEditForm} />
-                    {lotEditError && <p className="text-sm text-loss">{lotEditError}</p>}
+                    {lotEditError && <p className="text-sm text-bad-text">{lotEditError}</p>}
                     <div className="flex gap-2">
                       <button
                         type="submit"
                         disabled={lotEditLoading}
-                        className="rounded-lg bg-accent px-3 py-2 text-sm font-medium text-base-950 transition hover:bg-accent-soft disabled:opacity-50"
+                        className="btn-gold btn-sm disabled:opacity-50"
                       >
                         {lotEditLoading ? "Saving..." : "Save"}
                       </button>
                       <button
                         type="button"
                         onClick={() => setEditingLotId(null)}
-                        className="rounded-lg border border-accent/20 px-3 py-2 text-sm text-muted hover:text-white"
+                        className="btn-ghost btn-sm"
                       >
                         Cancel
                       </button>
@@ -478,10 +479,10 @@ export function LotManager({ lots, summary }: { lots: LotRow[]; summary: LotsSum
             }
 
             return (
-              <div key={lot.id} className="rounded-xl border border-accent/10 bg-base-900 p-5 shadow-panel">
+              <div key={lot.id} className="card p-6">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <p className="font-medium text-white">{lot.name}</p>
+                    <p className="font-medium text-fg">{lot.name}</p>
                     <p className="text-xs text-muted">
                       {lot.source ? `${lot.source} · ` : ""}
                       {new Date(lot.purchaseDate).toLocaleDateString("en-US", {
@@ -496,39 +497,36 @@ export function LotManager({ lots, summary }: { lots: LotRow[]; summary: LotsSum
                     <span
                       className={clsx(
                         "rounded-full px-2 py-0.5 text-xs",
-                        soldOut ? "bg-gain/15 text-gain" : "bg-accent/15 text-accent"
+                        soldOut ? "bg-ok/[.14] text-ok-text" : "bg-gold/[.14] text-gold-text"
                       )}
                     >
                       {soldOut ? "Fully sold" : `${lot.soldCount} / ${lot.totalCards} sold`}
                     </span>
-                    <button onClick={() => openEditLot(lot)} className="text-xs text-accent hover:underline">
+                    <button onClick={() => openEditLot(lot)} className="text-xs font-semibold text-gold-text hover:underline">
                       Edit
                     </button>
-                    <button onClick={() => handleDeleteLot(lot.id)} className="text-xs text-loss hover:underline">
+                    <button onClick={() => handleDeleteLot(lot.id)} className="text-xs font-semibold text-bad-text hover:underline">
                       Delete
                     </button>
                   </div>
                 </div>
 
-                <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-base-850">
-                  <div
-                    className="h-full rounded-full bg-accent transition-all"
-                    style={{ width: `${Math.min(100, percentSold)}%` }}
-                  />
+                <div className="bar mt-4">
+                  <span style={{ width: `${Math.min(100, percentSold)}%` }} />
                 </div>
 
                 <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
                   <div>
                     <p className="text-xs text-muted">Total Cost</p>
-                    <p className="font-mono text-sm text-white">{formatCents(lot.totalCost)}</p>
+                    <p className="tabular-nums text-sm text-fg">{formatCents(lot.totalCost)}</p>
                   </div>
                   <div>
                     <p className="text-xs text-muted">Cost / Card</p>
-                    <p className="font-mono text-sm text-white">{formatCents(lot.costPerCard)}</p>
+                    <p className="tabular-nums text-sm text-fg">{formatCents(lot.costPerCard)}</p>
                   </div>
                   <div>
                     <p className="text-xs text-muted">Profit So Far</p>
-                    <p className={clsx("font-mono text-sm", lot.realizedProfit >= 0 ? "text-gain" : "text-loss")}>
+                    <p className={clsx("tabular-nums text-sm", lot.realizedProfit >= 0 ? "text-ok-text" : "text-bad-text")}>
                       {formatCents(lot.realizedProfit)}
                     </p>
                   </div>
@@ -536,8 +534,8 @@ export function LotManager({ lots, summary }: { lots: LotRow[]; summary: LotsSum
                     <p className="text-xs text-muted">ROI</p>
                     <p
                       className={clsx(
-                        "font-mono text-sm",
-                        lot.roi == null ? "text-muted" : lot.roi >= 0 ? "text-gain" : "text-loss"
+                        "tabular-nums text-sm",
+                        lot.roi == null ? "text-muted" : lot.roi >= 0 ? "text-ok-text" : "text-bad-text"
                       )}
                     >
                       {formatPercent(lot.roi)}
@@ -546,14 +544,14 @@ export function LotManager({ lots, summary }: { lots: LotRow[]; summary: LotsSum
                 </div>
 
                 {!soldOut && (
-                  <div className="mt-4 grid grid-cols-2 gap-4 border-t border-accent/10 pt-4 sm:grid-cols-4">
+                  <div className="mt-4 grid grid-cols-2 gap-4 border-t border-line pt-4 sm:grid-cols-4">
                     <div>
                       <p className="text-xs text-muted">Remaining Cost</p>
-                      <p className="font-mono text-sm text-white">{formatCents(lot.remainingCostValue)}</p>
+                      <p className="tabular-nums text-sm text-fg">{formatCents(lot.remainingCostValue)}</p>
                     </div>
                     <div>
                       <p className="text-xs text-muted">Est. Value</p>
-                      <p className="font-mono text-sm text-white">
+                      <p className="tabular-nums text-sm text-fg">
                         {lot.estValue != null ? formatCents(lot.estValue) : "—"}
                       </p>
                     </div>
@@ -561,12 +559,12 @@ export function LotManager({ lots, summary }: { lots: LotRow[]; summary: LotsSum
                       <p className="text-xs text-muted">Unrealized P&L</p>
                       <p
                         className={clsx(
-                          "font-mono text-sm",
+                          "tabular-nums text-sm",
                           lot.unrealizedProfit == null
                             ? "text-muted"
                             : lot.unrealizedProfit >= 0
-                              ? "text-gain"
-                              : "text-loss"
+                              ? "text-ok-text"
+                              : "text-bad-text"
                         )}
                       >
                         {lot.unrealizedProfit != null ? formatCents(lot.unrealizedProfit) : "Add an Est. Value to see this"}
@@ -577,17 +575,17 @@ export function LotManager({ lots, summary }: { lots: LotRow[]; summary: LotsSum
 
                 {lot.notes && <p className="mt-3 text-xs text-muted">{lot.notes}</p>}
 
-                <div className="mt-4 flex flex-wrap items-center gap-4 border-t border-accent/10 pt-4">
+                <div className="mt-4 flex flex-wrap items-center gap-4 border-t border-line pt-4">
                   {!soldOut && (
                     <button
                       onClick={() => (activeSaleLotId === lot.id ? setActiveSaleLotId(null) : openSaleForm(lot.id))}
-                      className="rounded-lg border border-accent/20 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-accent/10"
+                      className="btn-ghost btn-sm"
                     >
                       {activeSaleLotId === lot.id ? "Cancel" : "+ Add Sale"}
                     </button>
                   )}
                   {lot.sales.length > 0 && (
-                    <button onClick={() => toggleHistory(lot.id)} className="text-xs text-accent hover:underline">
+                    <button onClick={() => toggleHistory(lot.id)} className="text-xs font-semibold text-gold-text hover:underline">
                       {historyShown ? "Hide" : "Show"} sale history ({lot.sales.length})
                     </button>
                   )}
@@ -596,14 +594,14 @@ export function LotManager({ lots, summary }: { lots: LotRow[]; summary: LotsSum
                 {activeSaleLotId === lot.id && (
                   <form
                     onSubmit={(e) => handleAddSale(e, lot.id)}
-                    className="mt-4 space-y-3 rounded-lg border border-accent/20 bg-base-850 p-4"
+                    className="mt-4 space-y-3 rounded-2xl border border-line bg-inset p-4"
                   >
                     <SaleFields form={saleForm} setForm={setSaleForm} maxQuantity={lot.remaining} lot={lot} />
-                    {saleError && <p className="text-sm text-loss">{saleError}</p>}
+                    {saleError && <p className="text-sm text-bad-text">{saleError}</p>}
                     <button
                       type="submit"
                       disabled={saleLoading}
-                      className="rounded-lg bg-accent px-3 py-2 text-sm font-medium text-base-950 transition hover:bg-accent-soft disabled:opacity-50"
+                      className="btn-gold btn-sm disabled:opacity-50"
                     >
                       {saleLoading ? "Saving..." : "Log Sale"}
                     </button>
@@ -611,13 +609,13 @@ export function LotManager({ lots, summary }: { lots: LotRow[]; summary: LotsSum
                 )}
 
                 {historyShown && lot.sales.length > 0 && (
-                  <ul className="mt-4 divide-y divide-accent/10 border-t border-accent/10">
+                  <ul className="mt-4 divide-y divide-line border-t border-line">
                     {lot.sales.map((sale) =>
                       editingSaleId === sale.id ? (
                         <li key={sale.id} className="py-4">
                           <form
                             onSubmit={(e) => handleSaveSaleEdit(e, lot.id, sale.id)}
-                            className="space-y-3 rounded-lg border border-accent/20 bg-base-850 p-4"
+                            className="space-y-3 rounded-2xl border border-line bg-inset p-4"
                           >
                             <SaleFields
                               form={saleEditForm}
@@ -626,19 +624,19 @@ export function LotManager({ lots, summary }: { lots: LotRow[]; summary: LotsSum
                               lot={lot}
                               excludeSaleId={sale.id}
                             />
-                            {saleEditError && <p className="text-sm text-loss">{saleEditError}</p>}
+                            {saleEditError && <p className="text-sm text-bad-text">{saleEditError}</p>}
                             <div className="flex gap-2">
                               <button
                                 type="submit"
                                 disabled={saleEditLoading}
-                                className="rounded-lg bg-accent px-3 py-2 text-sm font-medium text-base-950 transition hover:bg-accent-soft disabled:opacity-50"
+                                className="btn-gold btn-sm disabled:opacity-50"
                               >
                                 {saleEditLoading ? "Saving..." : "Save"}
                               </button>
                               <button
                                 type="button"
                                 onClick={() => setEditingSaleId(null)}
-                                className="rounded-lg border border-accent/20 px-3 py-2 text-sm text-muted hover:text-white"
+                                className="btn-ghost btn-sm"
                               >
                                 Cancel
                               </button>
@@ -646,9 +644,9 @@ export function LotManager({ lots, summary }: { lots: LotRow[]; summary: LotsSum
                           </form>
                         </li>
                       ) : (
-                        <li key={sale.id} className="flex items-center justify-between py-2.5">
+                        <li key={sale.id} className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between">
                           <div>
-                            <p className="text-sm text-white">
+                            <p className="text-sm text-fg">
                               {sale.quantity} card{sale.quantity === 1 ? "" : "s"}
                               {sale.salePrice != null && (
                                 <span className="text-muted"> · sold for {formatCents(sale.salePrice)}</span>
@@ -671,15 +669,15 @@ export function LotManager({ lots, summary }: { lots: LotRow[]; summary: LotsSum
                             </p>
                           </div>
                           <div className="flex items-center gap-4">
-                            <span className={clsx("font-mono text-sm", sale.profit >= 0 ? "text-gain" : "text-loss")}>
+                            <span className={clsx("tabular-nums text-sm", sale.profit >= 0 ? "text-ok-text" : "text-bad-text")}>
                               {formatCents(sale.profit)}
                             </span>
-                            <button onClick={() => openEditSale(sale, lot)} className="text-xs text-accent hover:underline">
+                            <button onClick={() => openEditSale(sale, lot)} className="text-xs font-semibold text-gold-text hover:underline">
                               Edit
                             </button>
                             <button
                               onClick={() => handleDeleteSale(lot.id, sale.id)}
-                              className="text-xs text-loss hover:underline"
+                              className="text-xs font-semibold text-bad-text hover:underline"
                             >
                               Remove
                             </button>

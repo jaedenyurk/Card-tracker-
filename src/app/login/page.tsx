@@ -35,17 +35,13 @@ function LoginForm() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-base-950 px-4">
-      <form
-        onSubmit={handleSubmit}
-        className="w-full max-w-sm rounded-xl border border-accent/20 bg-base-900 bg-holo p-8 shadow-panel"
-      >
-        <div className="mb-6 text-center">
-          <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-foil text-base-950 font-bold">
-            $
-          </div>
-          <h1 className="text-lg font-semibold text-white">Card Business Tracker</h1>
-          <p className="mt-1 text-sm text-muted">Enter your password to continue</p>
+    <div className="flex min-h-screen items-center justify-center px-4 py-10">
+      <form onSubmit={handleSubmit} className="card w-full max-w-sm p-8">
+        <div className="mb-7 text-center">
+          <img src="/logo.png" alt="MVP Card Collectors" width={112} height={112} className="mx-auto mb-5 h-28 w-28 object-contain" />
+          <p className="eyebrow">Private workspace</p>
+          <h1 className="mt-3 font-display text-[26px] font-extrabold leading-tight tracking-[-0.03em] text-fg">Card Business Tracker</h1>
+          <p className="mt-2 text-sm text-muted">Enter your password to continue</p>
         </div>
 
         <input
@@ -54,16 +50,12 @@ function LoginForm() {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           placeholder="Password"
-          className="w-full rounded-lg border border-accent/20 bg-base-850 px-4 py-2.5 text-sm text-white placeholder:text-muted focus:border-accent focus:outline-none"
+          className="w-full rounded-[14px] border border-line bg-card px-4 py-3 text-sm text-fg placeholder:text-muted transition-ui focus:border-gold focus:outline-none focus:ring-4 focus:ring-gold/[.22]"
         />
 
-        {error && <p className="mt-3 text-sm text-loss">{error}</p>}
+        {error && <p className="mt-3 text-sm font-medium text-bad-text">{error}</p>}
 
-        <button
-          type="submit"
-          disabled={loading || password.length === 0}
-          className="mt-5 w-full rounded-lg bg-accent px-4 py-2.5 text-sm font-medium text-base-950 transition hover:bg-accent-soft disabled:cursor-not-allowed disabled:opacity-50"
-        >
+        <button type="submit" disabled={loading || password.length === 0} className="btn-gold mt-5 w-full py-3">
           {loading ? "Checking..." : "Unlock"}
         </button>
       </form>

@@ -5,6 +5,7 @@ import { toLotRow } from "@/lib/lots";
 import { computeLotsSummary } from "@/lib/calculations";
 import { InventoryTable } from "@/components/InventoryTable";
 import { LotManager } from "@/components/LotManager";
+import { PageHeader } from "@/components/PageHeader";
 
 export const dynamic = "force-dynamic";
 
@@ -22,25 +23,23 @@ export default async function InventoryPage() {
   const lotsSummary = computeLotsSummary(lots, allSales);
 
   return (
-    <div className="space-y-10">
-      <div className="space-y-6">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h1 className="text-xl font-semibold text-white">Inventory</h1>
-            <p className="text-sm text-muted">Every card you've bought, held, or sold</p>
-          </div>
-          <Link
-            href="/inventory/new"
-            className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-base-950 transition hover:bg-accent-soft"
-          >
-            + Add Card
-          </Link>
-        </div>
+    <div className="space-y-12">
+      <div className="space-y-8">
+        <PageHeader
+          eyebrow="Inventory"
+          title="Inventory"
+          subtitle="Every card you've bought, held, or sold"
+          action={
+            <Link href="/inventory/new" className="btn-gold">
+              + Add Card
+            </Link>
+          }
+        />
 
         <InventoryTable rows={rows} />
       </div>
 
-      <div className="border-t border-accent/10 pt-8">
+      <div>
         <LotManager lots={lotRows} summary={lotsSummary} />
       </div>
     </div>

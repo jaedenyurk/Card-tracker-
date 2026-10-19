@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 const inputClass =
-  "w-full rounded-lg border border-accent/20 bg-base-850 px-3 py-2 text-sm text-white placeholder:text-muted focus:border-accent focus:outline-none";
+  "w-full rounded-[14px] border border-line bg-card px-3.5 py-2.5 text-sm text-fg placeholder:text-muted transition-ui focus:border-gold focus:outline-none focus:ring-4 focus:ring-gold/[.22]";
 const labelClass = "mb-1.5 block text-xs font-medium text-muted";
 
 interface Props {
@@ -73,10 +73,10 @@ export function CardActionsPanel({ cardId, status, marketValueDollars }: Props) 
   }
 
   return (
-    <div className="rounded-xl border border-accent/10 bg-base-900 p-5 shadow-panel">
-      <h2 className="mb-4 text-sm font-semibold text-white">Actions</h2>
+    <div className="card p-6">
+      <h2 className="mb-4 font-display text-base font-bold tracking-tight text-fg">Actions</h2>
 
-      {error && <p className="mb-3 text-sm text-loss">{error}</p>}
+      {error && <p className="mb-3 text-sm text-bad-text">{error}</p>}
 
       {mode === "idle" && (
         <div className="flex flex-wrap gap-2">
@@ -84,13 +84,13 @@ export function CardActionsPanel({ cardId, status, marketValueDollars }: Props) 
             <>
               <button
                 onClick={() => setMode("sell")}
-                className="rounded-lg bg-accent px-3 py-2 text-sm font-medium text-base-950 transition hover:bg-accent-soft"
+                className="btn-gold btn-sm"
               >
                 Mark as Sold
               </button>
               <button
                 onClick={() => setMode("value")}
-                className="rounded-lg border border-accent/20 px-3 py-2 text-sm text-white transition hover:bg-accent/10"
+                className="btn-ghost btn-sm"
               >
                 Update Est. Value
               </button>
@@ -99,7 +99,7 @@ export function CardActionsPanel({ cardId, status, marketValueDollars }: Props) 
             <button
               onClick={handleRevert}
               disabled={loading}
-              className="rounded-lg border border-accent/20 px-3 py-2 text-sm text-white transition hover:bg-accent/10"
+              className="btn-ghost btn-sm"
             >
               Revert to Held
             </button>
@@ -107,7 +107,7 @@ export function CardActionsPanel({ cardId, status, marketValueDollars }: Props) 
           <button
             onClick={handleDelete}
             disabled={loading}
-            className="rounded-lg border border-loss/30 px-3 py-2 text-sm text-loss transition hover:bg-loss/10"
+            className="btn-sm inline-flex items-center justify-center rounded-full border border-bad/40 px-3.5 py-1.5 text-xs font-semibold text-bad-text transition-ui hover:bg-bad/10"
           >
             Delete Card
           </button>
@@ -141,14 +141,14 @@ export function CardActionsPanel({ cardId, status, marketValueDollars }: Props) 
             <button
               type="submit"
               disabled={loading}
-              className="rounded-lg bg-accent px-3 py-2 text-sm font-medium text-base-950 transition hover:bg-accent-soft disabled:opacity-50"
+              className="btn-gold btn-sm disabled:opacity-50"
             >
               {loading ? "Saving..." : "Confirm Sale"}
             </button>
             <button
               type="button"
               onClick={() => setMode("idle")}
-              className="rounded-lg border border-accent/20 px-3 py-2 text-sm text-muted hover:text-white"
+              className="btn-ghost btn-sm"
             >
               Cancel
             </button>
@@ -174,14 +174,14 @@ export function CardActionsPanel({ cardId, status, marketValueDollars }: Props) 
             <button
               type="submit"
               disabled={loading}
-              className="rounded-lg bg-accent px-3 py-2 text-sm font-medium text-base-950 transition hover:bg-accent-soft disabled:opacity-50"
+              className="btn-gold btn-sm disabled:opacity-50"
             >
               {loading ? "Saving..." : "Save"}
             </button>
             <button
               type="button"
               onClick={() => setMode("idle")}
-              className="rounded-lg border border-accent/20 px-3 py-2 text-sm text-muted hover:text-white"
+              className="btn-ghost btn-sm"
             >
               Cancel
             </button>

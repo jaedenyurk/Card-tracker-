@@ -7,7 +7,7 @@ import { formatCents, inPeriod, type PeriodKey } from "@/lib/calculations";
 import { readStoredPeriod, writeStoredPeriod } from "@/lib/periodPreference";
 
 const inputClass =
-  "w-full rounded-lg border border-accent/20 bg-base-850 px-3 py-2 text-sm text-white placeholder:text-muted focus:border-accent focus:outline-none";
+  "w-full rounded-[14px] border border-line bg-card px-3.5 py-2.5 text-sm text-fg placeholder:text-muted transition-ui focus:border-gold focus:outline-none focus:ring-4 focus:ring-gold/[.22]";
 const labelClass = "mb-1.5 block text-xs font-medium text-muted";
 
 const CATEGORIES = ["Grading", "Shipping", "Supplies", "Inventory", "Fees", "Travel", "Software", "Other"];
@@ -210,14 +210,14 @@ export function ExpenseManager({
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap gap-1 rounded-lg border border-accent/20 bg-base-850 p-0.5 text-xs">
+        <div className="seg">
           {PERIODS.map((p) => (
             <button
               key={p.key}
               onClick={() => setPeriodFilter(p.key)}
               className={
-                "rounded-md px-3 py-1 transition " +
-                (periodFilter === p.key ? "bg-accent text-base-950" : "text-muted hover:text-white")
+                "seg-tab " +
+                (periodFilter === p.key ? "seg-tab-on" : "")
               }
             >
               {p.label}
@@ -226,20 +226,20 @@ export function ExpenseManager({
         </div>
         <button
           onClick={() => setAdding((a) => !a)}
-          className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-base-950 transition hover:bg-accent-soft"
+          className="btn-gold"
         >
           {adding ? "Cancel" : "+ Add Expense"}
         </button>
       </div>
 
-      <div className="flex flex-wrap gap-1 rounded-lg border border-accent/20 bg-base-850 p-0.5 text-xs">
+      <div className="seg">
         {["ALL", ...CATEGORIES].map((c) => (
           <button
             key={c}
             onClick={() => setCategoryFilter(c)}
             className={
-              "rounded-md px-3 py-1 transition " +
-              (categoryFilter === c ? "bg-accent text-base-950" : "text-muted hover:text-white")
+              "seg-tab " +
+              (categoryFilter === c ? "seg-tab-on" : "")
             }
           >
             {c === "ALL" ? "All" : c}
@@ -248,51 +248,51 @@ export function ExpenseManager({
       </div>
 
       {adding && (
-        <form onSubmit={handleAdd} className="space-y-4 rounded-xl border border-accent/10 bg-base-900 p-5 shadow-panel">
+        <form onSubmit={handleAdd} className="space-y-4 card p-6">
           <ExpenseFields form={form} setForm={setForm} cardOptions={cardOptions} />
-          {error && <p className="text-sm text-loss">{error}</p>}
+          {error && <p className="text-sm text-bad-text">{error}</p>}
           <button
             type="submit"
             disabled={loading}
-            className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-base-950 transition hover:bg-accent-soft disabled:opacity-50"
+            className="btn-gold disabled:opacity-50"
           >
             {loading ? "Saving..." : "Add Expense"}
           </button>
         </form>
       )}
 
-      <div className="rounded-xl border border-accent/10 bg-base-900 shadow-panel">
-        <div className="flex items-center justify-between border-b border-accent/10 px-5 py-4">
-          <h2 className="text-sm font-semibold text-white">
+      <div className="card">
+        <div className="flex items-center justify-between border-b border-line px-5 py-4">
+          <h2 className="font-display text-base font-bold tracking-tight text-fg">
             {categoryFilter === "ALL" ? "All Expenses" : categoryFilter} ·{" "}
             {PERIODS.find((p) => p.key === periodFilter)?.label} ({filtered.length})
           </h2>
-          <p className="font-mono text-sm text-white">{formatCents(total)}</p>
+          <p className="tabular-nums text-sm text-fg">{formatCents(total)}</p>
         </div>
         {filtered.length === 0 ? (
           <p className="px-5 py-10 text-center text-sm text-muted">
             {expenses.length === 0 ? "No expenses recorded yet." : "No expenses match this filter."}
           </p>
         ) : (
-          <ul className="divide-y divide-accent/10">
+          <ul className="divide-y divide-line">
             {filtered.map((e) =>
               editingId === e.id ? (
                 <li key={e.id} className="px-5 py-4">
                   <form onSubmit={(evt) => handleSaveEdit(evt, e.id)} className="space-y-4">
                     <ExpenseFields form={editForm} setForm={setEditForm} cardOptions={cardOptions} />
-                    {editError && <p className="text-sm text-loss">{editError}</p>}
+                    {editError && <p className="text-sm text-bad-text">{editError}</p>}
                     <div className="flex gap-2">
                       <button
                         type="submit"
                         disabled={editLoading}
-                        className="rounded-lg bg-accent px-3 py-2 text-sm font-medium text-base-950 transition hover:bg-accent-soft disabled:opacity-50"
+                        className="btn-gold btn-sm disabled:opacity-50"
                       >
                         {editLoading ? "Saving..." : "Save"}
                       </button>
                       <button
                         type="button"
                         onClick={() => setEditingId(null)}
-                        className="rounded-lg border border-accent/20 px-3 py-2 text-sm text-muted hover:text-white"
+                        className="btn-ghost btn-sm"
                       >
                         Cancel
                       </button>
@@ -300,16 +300,16 @@ export function ExpenseManager({
                   </form>
                 </li>
               ) : (
-                <li key={e.id} className="flex items-center justify-between px-5 py-3">
+                <li key={e.id} className="flex flex-col gap-2 px-5 py-3.5 transition-ui hover:bg-gold/[.05] sm:flex-row sm:items-center sm:justify-between">
                   <div>
-                    <p className="text-sm text-white">{e.description}</p>
+                    <p className="text-sm text-fg">{e.description}</p>
                     <p className="text-xs text-muted">
                       {e.category} ·{" "}
                       {new Date(e.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" })}
                       {e.card && (
                         <>
                           {" · "}
-                          <Link href={`/inventory/${e.card.id}`} className="text-accent hover:underline">
+                          <Link href={`/inventory/${e.card.id}`} className="text-gold-text hover:underline">
                             {e.card.player}
                           </Link>
                         </>
@@ -317,11 +317,11 @@ export function ExpenseManager({
                     </p>
                   </div>
                   <div className="flex items-center gap-4">
-                    <span className="font-mono text-sm text-white">{formatCents(e.amount)}</span>
-                    <button onClick={() => openEdit(e)} className="text-xs text-accent hover:underline">
+                    <span className="tabular-nums text-sm text-fg">{formatCents(e.amount)}</span>
+                    <button onClick={() => openEdit(e)} className="text-xs font-semibold text-gold-text hover:underline">
                       Edit
                     </button>
-                    <button onClick={() => handleDelete(e.id)} className="text-xs text-loss hover:underline">
+                    <button onClick={() => handleDelete(e.id)} className="text-xs font-semibold text-bad-text hover:underline">
                       Remove
                     </button>
                   </div>

@@ -2,37 +2,272 @@
 @tailwind components;
 @tailwind utilities;
 
-html {
-  color-scheme: dark;
+@layer base {
+  /* The whole look lives in these tokens. Colors are space-separated RGB channels so they can be used with alpha
+     (rgb(var(--gold) / .2)); change them here to re-theme the entire app. */
+  :root {
+    /* Surfaces */
+    --page: 245 242 233;           /* warm ivory #f5f2e9 */
+    --card: 255 255 255;           /* #ffffff */
+    --inset: 250 248 241;          /* #faf8f1: inset / secondary surfaces */
+    --line: 236 230 214;           /* hairline border #ece6d6 */
+
+    /* Text */
+    --text: 21 18 10;              /* near-black warm #15120a */
+    --muted: 110 104 86;           /* #6e6856 */
+
+    /* Gold: the accent. Plain gold is for fills, borders and rings; gold used as TEXT on light surfaces must be --gold-text. */
+    --gold: 201 162 39;            /* #c9a227 */
+    --gold-deep: 166 124 0;        /* #a67c00 */
+    --gold-bright: 240 215 124;    /* #f0d77c */
+    --gold-text: 122 92 0;         /* #7a5c00 */
+
+    /* Black: the secondary (sidebar, feature panels, active tab, rank badges) */
+    --ink: 14 13 10;               /* #0e0d0a */
+    --ink-2: 28 26 20;             /* #1c1a14 */
+    --on-ink: 245 242 233;         /* light text on black */
+
+    /* Semantic colors keep their meaning; chips are the color at ~14% with the darker text */
+    --success: 15 154 107;         /* #0f9a6b */
+    --success-text: 10 118 82;     /* #0a7652 */
+    --danger: 212 48 75;           /* #d4304b */
+    --danger-text: 174 31 56;      /* #ae1f38 */
+    --warning: 184 99 0;           /* #b86300 */
+
+    --gold-gradient: linear-gradient(135deg, #f0d77c 0%, #c9a227 55%, #b8921a 100%);
+    --ink-gradient: linear-gradient(160deg, #1c1a14 0%, #0e0d0a 70%);
+
+    --shadow-card: 0 1px 2px rgba(34, 28, 8, 0.04), 0 6px 20px rgba(34, 28, 8, 0.06);
+    --shadow-lift: 0 2px 4px rgba(34, 28, 8, 0.05), 0 14px 32px rgba(34, 28, 8, 0.12);
+    --shadow-gold: 0 6px 18px rgb(var(--gold) / 0.35);
+
+    --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+    --dur: 180ms;
+  }
+
+  html {
+    color-scheme: light;
+  }
+
+  body {
+    background-color: rgb(var(--page));
+    /* Two soft gold glows in the top corners, fixed so they stay put while the page scrolls. */
+    background-image:
+      radial-gradient(900px 520px at 0% 0%, rgb(var(--gold) / 0.16), transparent 62%),
+      radial-gradient(760px 460px at 100% 0%, rgb(var(--gold) / 0.08), transparent 62%);
+    background-attachment: fixed;
+    background-repeat: no-repeat;
+    color: rgb(var(--text));
+  }
+
+  ::selection {
+    background: rgb(var(--gold) / 0.3);
+  }
+
+  :focus-visible {
+    outline: 2px solid rgb(var(--gold));
+    outline-offset: 2px;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgb(var(--muted) / 0.35);
+    border-radius: 999px;
+  }
+
+  input[type="date"]::-webkit-calendar-picker-indicator {
+    opacity: 0.6;
+  }
+
+  /* iOS Safari auto-zooms the page when focusing a text input smaller than 16px. Bump form field text up to 16px on
+     small screens to prevent that, while keeping the tighter 14px (text-sm) sizing on larger screens. */
+  @media (max-width: 767px) {
+    input,
+    select,
+    textarea {
+      font-size: 16px;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
 }
 
-body {
-  background-color: #0a0a0d;
+@layer utilities {
+  /* Only color, shadow and transform ever animate. */
+  .transition-ui {
+    transition-property: color, background-color, border-color, box-shadow, transform;
+    transition-duration: var(--dur);
+    transition-timing-function: var(--ease);
+  }
 }
 
-::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
-}
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-::-webkit-scrollbar-thumb {
-  background: #3a3a52;
-  border-radius: 999px;
-}
+@layer components {
+  /* ---- Surfaces ---- */
+  .card {
+    @apply rounded-[22px] border border-line bg-card shadow-card;
+  }
+  /* A card that lifts on hover (dashboard panels, KPI tiles). */
+  .panel {
+    @apply rounded-[22px] border border-line bg-card shadow-card transition-ui;
+  }
+  .panel:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lift);
+  }
 
-input[type="date"]::-webkit-calendar-picker-indicator {
-  filter: invert(0.6);
-}
+  /* Dark surfaces re-declare the text tokens locally, so everything inside them just uses text-fg / text-muted / border-line. */
+  .theme-ink {
+    --text: 245 242 233;
+    --muted: 178 170 148;
+    --line: 255 255 255;
+    --card: 255 255 255;
+    color: rgb(var(--text));
+  }
+  .sidebar-surface {
+    background:
+      radial-gradient(420px 260px at 0% 0%, rgb(var(--gold) / 0.22), transparent 65%),
+      var(--ink-gradient);
+    box-shadow: var(--shadow-lift);
+  }
+  /* The black "feature" panel that holds the most important list on a page. */
+  .feature {
+    background:
+      radial-gradient(520px 280px at 100% 0%, rgb(var(--gold) / 0.24), transparent 62%),
+      radial-gradient(420px 260px at 0% 100%, rgb(var(--gold) / 0.12), transparent 62%),
+      var(--ink-gradient);
+    box-shadow: var(--shadow-lift);
+    @apply rounded-[30px];
+  }
 
-/* iOS Safari auto-zooms the page when focusing a text input smaller than
-   16px. Bump form field text up to 16px on small screens to prevent that,
-   while keeping the tighter 14px (text-sm) sizing on larger screens. */
-@media (max-width: 767px) {
-  input,
-  select,
-  textarea {
-    font-size: 16px;
+  /* ---- Headings ---- */
+  .eyebrow {
+    @apply inline-flex items-center gap-2.5 text-[11px] font-bold uppercase tracking-[0.12em];
+    color: rgb(var(--gold-text));
+  }
+  .eyebrow::before {
+    content: "";
+    width: 18px;
+    height: 2px;
+    border-radius: 2px;
+    background: var(--gold-gradient);
+  }
+  .page-title {
+    @apply font-display text-[32px] font-extrabold leading-[1.05] tracking-[-0.035em] md:text-[42px];
+  }
+
+  /* ---- Buttons ---- */
+  .btn-gold {
+    @apply inline-flex items-center justify-center gap-2 rounded-full px-5 py-2.5 text-sm font-bold transition-ui;
+    color: rgb(var(--ink));
+    background: var(--gold-gradient);
+    box-shadow: var(--shadow-gold), inset 0 1px 0 rgba(255, 255, 255, 0.55);
+  }
+  .btn-gold:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 9px 22px rgb(var(--gold) / 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.55);
+  }
+  .btn-gold:disabled {
+    @apply cursor-not-allowed opacity-50;
+    transform: none;
+  }
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 rounded-full border border-line bg-card px-5 py-2.5 text-sm font-semibold text-fg transition-ui;
+  }
+  .btn-ghost:hover {
+    border-color: rgb(var(--gold) / 0.6);
+    background: rgb(var(--gold) / 0.1);
+  }
+  .btn-ghost:disabled {
+    @apply cursor-not-allowed opacity-50;
+  }
+  .btn-sm {
+    @apply px-3.5 py-1.5 text-xs;
+  }
+
+  /* ---- Segmented tabs: a light pill track, the active tab black with a thin gold inner ring ---- */
+  .seg {
+    @apply inline-flex flex-wrap gap-0.5 rounded-[22px] border border-line p-[3px] text-xs;
+    background: rgb(var(--gold) / 0.1);
+  }
+  .seg-tab {
+    @apply rounded-full px-3.5 py-1.5 font-semibold text-muted transition-ui;
+  }
+  .seg-tab:hover {
+    color: rgb(var(--text));
+  }
+  .seg-tab-on,
+  .seg-tab-on:hover {
+    background: rgb(var(--ink));
+    color: rgb(var(--on-ink));
+    box-shadow: inset 0 0 0 1px rgb(var(--gold) / 0.75);
+  }
+
+  /* ---- Navigation ---- */
+  .nav-item {
+    @apply flex items-center gap-3 rounded-full px-4 py-2.5 text-sm font-medium text-muted transition-ui;
+  }
+  .nav-item:hover {
+    color: rgb(var(--text));
+    background: rgb(255 255 255 / 0.06);
+  }
+  .nav-item-on,
+  .nav-item-on:hover {
+    color: rgb(var(--ink));
+    font-weight: 700;
+    background: var(--gold-gradient);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 4px 12px rgb(var(--gold) / 0.3);
+  }
+
+  /* ---- Small pieces ---- */
+  .chip {
+    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold;
+  }
+  .rank {
+    @apply inline-grid h-[30px] w-[30px] shrink-0 place-items-center rounded-[10px] text-xs font-extrabold tabular-nums;
+    background: rgb(var(--ink) / 0.06);
+    color: rgb(var(--text));
+  }
+  .rank-top {
+    background: rgb(var(--ink));
+    color: rgb(var(--gold-bright));
+  }
+  .bar {
+    @apply h-1 w-full overflow-hidden rounded-full;
+    background: rgb(var(--ink) / 0.07);
+  }
+  .bar > span {
+    @apply block h-full rounded-full;
+    background: var(--gold-gradient);
+  }
+  .th {
+    @apply whitespace-nowrap px-5 py-3 text-[11px] font-semibold uppercase tracking-[0.1em] text-muted;
+  }
+
+  /* ---- Loading ---- */
+  .skeleton {
+    @apply rounded-[14px];
+    background: linear-gradient(90deg, rgb(var(--line) / 0.7) 25%, rgb(var(--gold) / 0.2) 50%, rgb(var(--line) / 0.7) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s linear infinite;
+  }
+  @keyframes shimmer {
+    to {
+      background-position: -200% 0;
+    }
   }
 }

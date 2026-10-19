@@ -45,14 +45,14 @@ export function DashboardSummary({
 
   return (
     <div className="space-y-4">
-      <div className="flex w-fit gap-1 rounded-lg border border-accent/20 bg-base-850 p-0.5 text-xs">
+      <div className="seg">
         {PERIODS.map((p) => (
           <button
             key={p.key}
             onClick={() => setPeriod(p.key)}
             className={clsx(
-              "rounded-md px-3 py-1 transition",
-              period === p.key ? "bg-accent text-base-950" : "text-muted hover:text-white"
+              "seg-tab",
+              period === p.key ? "seg-tab-on" : ""
             )}
           >
             {p.label}
@@ -60,7 +60,7 @@ export function DashboardSummary({
         ))}
       </div>
 
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard
           label="Total Revenue"
           value={formatCents(cash.totalRevenue)}

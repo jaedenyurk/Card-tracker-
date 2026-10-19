@@ -47,5 +47,6 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+  // The logo and tab icon are static brand files the login page itself needs, so they skip the password gate.
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|logo.png|icon.png).*)"],
 };

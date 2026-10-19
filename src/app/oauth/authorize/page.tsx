@@ -4,9 +4,9 @@ export const dynamic = "force-dynamic";
 
 function ErrorScreen({ title, message }: { title: string; message: string }) {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-base-950 px-4">
-      <div className="w-full max-w-sm rounded-xl border border-accent/10 bg-base-900 p-8 text-center shadow-panel">
-        <h1 className="text-lg font-semibold text-loss">{title}</h1>
+    <div className="flex min-h-screen items-center justify-center px-4 py-10">
+      <div className="card w-full max-w-sm p-8 text-center">
+        <h1 className="font-display text-xl font-extrabold tracking-tight text-bad-text">{title}</h1>
         <p className="mt-2 text-sm text-muted">{message}</p>
       </div>
     </div>
@@ -43,16 +43,17 @@ export default async function AuthorizePage({
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-base-950 px-4">
-      <div className="w-full max-w-sm rounded-xl border border-accent/20 bg-base-900 bg-holo p-8 shadow-panel">
+    <div className="flex min-h-screen items-center justify-center px-4 py-10">
+      <div className="card w-full max-w-sm p-8">
         <div className="mb-6 text-center">
-          <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-foil text-base-950 font-bold">
-            $
-          </div>
-          <h1 className="text-lg font-semibold text-white">Authorize {client.clientName || "this app"}</h1>
-          <p className="mt-2 text-sm text-muted">
-            {client.clientName || "This app"} wants to read and add data in your Card Business Tracker —
-            inventory, revenue, expenses, and lot buys.
+          <img src="/logo.png" alt="MVP Card Collectors" width={96} height={96} className="mx-auto mb-5 h-24 w-24 object-contain" />
+          <p className="eyebrow">Connector request</p>
+          <h1 className="mt-3 font-display text-[26px] font-extrabold leading-tight tracking-[-0.03em] text-fg">
+            Authorize {client.clientName || "this app"}
+          </h1>
+          <p className="mt-3 text-sm leading-relaxed text-muted">
+            {client.clientName || "This app"} wants to read and add data in your Card Business Tracker — inventory, revenue, expenses,
+            and lot buys.
           </p>
         </div>
 
@@ -63,20 +64,10 @@ export default async function AuthorizePage({
           <input type="hidden" name="state" value={state} />
           <input type="hidden" name="scope" value={scope} />
           <input type="hidden" name="resource" value={resource} />
-          <button
-            type="submit"
-            name="decision"
-            value="allow"
-            className="w-full rounded-lg bg-accent px-4 py-2.5 text-sm font-medium text-base-950 transition hover:bg-accent-soft"
-          >
+          <button type="submit" name="decision" value="allow" className="btn-gold w-full py-3">
             Allow
           </button>
-          <button
-            type="submit"
-            name="decision"
-            value="deny"
-            className="w-full rounded-lg border border-accent/20 px-4 py-2.5 text-sm text-muted transition hover:text-white"
-          >
+          <button type="submit" name="decision" value="deny" className="btn-ghost w-full py-3 text-muted">
             Deny
           </button>
         </form>

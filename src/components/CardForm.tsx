@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { PageHeader } from "@/components/PageHeader";
 
 const inputClass =
-  "w-full rounded-lg border border-accent/20 bg-base-850 px-3 py-2 text-sm text-white placeholder:text-muted focus:border-accent focus:outline-none";
+  "w-full rounded-[14px] border border-line bg-card px-3.5 py-2.5 text-sm text-fg placeholder:text-muted transition-ui focus:border-gold focus:outline-none focus:ring-4 focus:ring-gold/[.22]";
 const labelClass = "mb-1.5 block text-xs font-medium text-muted";
 
 const SPORTS = ["Baseball", "Basketball", "Football", "Hockey", "Soccer", "Golf", "Other"];
@@ -88,15 +89,14 @@ export function CardForm(props: Props) {
   }
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold text-white">{props.mode === "edit" ? "Edit Card" : "Add Card"}</h1>
-        <p className="text-sm text-muted">
-          {props.mode === "edit" ? "Update this card's details" : "Log a new purchase for your inventory"}
-        </p>
-      </div>
+    <div className="mx-auto max-w-2xl space-y-8">
+      <PageHeader
+        eyebrow="Inventory"
+        title={props.mode === "edit" ? "Edit Card" : "Add Card"}
+        subtitle={props.mode === "edit" ? "Update this card's details" : "Log a new purchase for your inventory"}
+      />
 
-      <form onSubmit={handleSubmit} className="space-y-5 rounded-xl border border-accent/10 bg-base-900 p-6 shadow-panel">
+      <form onSubmit={handleSubmit} className="space-y-5 card p-6">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="sm:col-span-2">
             <label className={labelClass}>Player *</label>
@@ -155,7 +155,7 @@ export function CardForm(props: Props) {
           )}
         </div>
 
-        <hr className="border-accent/10" />
+        <hr className="border-line" />
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
@@ -204,7 +204,7 @@ export function CardForm(props: Props) {
           </div>
         </div>
 
-        <hr className="border-accent/10" />
+        <hr className="border-line" />
 
         <div>
           <label className={labelClass}>Image URL</label>
@@ -221,20 +221,20 @@ export function CardForm(props: Props) {
           />
         </div>
 
-        {error && <p className="text-sm text-loss">{error}</p>}
+        {error && <p className="text-sm text-bad-text">{error}</p>}
 
         <div className="flex gap-3">
           <button
             type="submit"
             disabled={loading}
-            className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-base-950 transition hover:bg-accent-soft disabled:opacity-50"
+            className="btn-gold disabled:opacity-50"
           >
             {loading ? "Saving..." : props.mode === "edit" ? "Save Changes" : "Save Card"}
           </button>
           <button
             type="button"
             onClick={() => router.back()}
-            className="rounded-lg border border-accent/20 px-4 py-2 text-sm text-muted transition hover:text-white"
+            className="btn-ghost"
           >
             Cancel
           </button>

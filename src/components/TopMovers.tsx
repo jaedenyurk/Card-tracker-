@@ -1,39 +1,50 @@
 import Link from "next/link";
+import clsx from "clsx";
 import { formatCents, formatPercent } from "@/lib/calculations";
 import type { CardRow } from "@/lib/rows";
 
-export function TopMovers({ title, rows }: { title: string; rows: CardRow[] }) {
+// A ranked list of cards by ROI. The "feature" variant is the black panel (rows are translucent tiles, ROI sits in a gold badge); the default is a white panel.
+export function TopMovers({ title, rows, variant = "light" }: { title: string; rows: CardRow[]; variant?: "light" | "feature" }) {
+  const feature = variant === "feature";
   return (
-    <div className="rounded-xl border border-accent/10 bg-base-900 p-5 shadow-panel">
-      <h2 className="mb-4 text-sm font-semibold text-white">{title}</h2>
+    <section className={clsx(feature ? "feature theme-ink p-7" : "panel p-6")}>
+      <h2 className="font-display text-base font-bold tracking-tight text-fg">{title}</h2>
       {rows.length === 0 ? (
-        <p className="text-sm text-muted">Not enough data yet.</p>
+        <p className="mt-4 text-sm text-muted">Not enough data yet.</p>
       ) : (
-        <ul className="space-y-3">
-          {rows.map((row) => (
+        <ul className="mt-5 space-y-2.5">
+          {rows.map((row, index) => (
             <li key={row.id}>
               <Link
                 href={`/inventory/${row.id}`}
-                className="flex items-center justify-between rounded-lg px-2 py-1.5 -mx-2 transition hover:bg-accent/10"
+                className={clsx(
+                  "flex items-center gap-3 rounded-2xl px-3 py-2.5 transition-ui",
+                  feature ? "bg-card/[.06] hover:bg-card/[.12]" : "hover:bg-gold/10"
+                )}
               >
-                <div>
-                  <p className="text-sm text-white">{row.player}</p>
-                  <p className="text-xs text-muted">
+                <span className={clsx("rank", index === 0 && "rank-top")}>{index + 1}</span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold text-fg">{row.player}</p>
+                  <p className="truncate text-xs text-muted">
                     {row.year ? `${row.year} · ` : ""}
                     {row.gradingLabel}
                   </p>
                 </div>
-                <div className="text-right">
-                  <p className={`font-mono text-sm ${(row.roi ?? 0) >= 0 ? "text-gain" : "text-loss"}`}>
-                    {formatPercent(row.roi)}
-                  </p>
-                  <p className="text-xs text-muted">{formatCents(row.profit ?? 0)}</p>
+                <div className="flex shrink-0 flex-col items-end gap-0.5">
+                  {feature ? (
+                    <span className="chip bg-gold-grad font-extrabold tabular-nums text-ink shadow-gold">{formatPercent(row.roi)}</span>
+                  ) : (
+                    <p className={clsx("text-sm font-bold tabular-nums", (row.roi ?? 0) >= 0 ? "text-ok-text" : "text-bad-text")}>
+                      {formatPercent(row.roi)}
+                    </p>
+                  )}
+                  <p className="text-xs tabular-nums text-muted">{formatCents(row.profit ?? 0)}</p>
                 </div>
               </Link>
             </li>
           ))}
         </ul>
       )}
-    </div>
+    </section>
   );
 }

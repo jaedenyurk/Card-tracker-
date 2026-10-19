@@ -18,10 +18,11 @@ import type { MonthlyPoint, YearlyPoint } from "@/lib/types";
 function CustomTooltip({ active, payload, label }: any) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="rounded-lg border border-accent/20 bg-base-850 px-3 py-2 text-xs shadow-panel">
-      <p className="mb-1 font-medium text-white">{label}</p>
+    <div className="rounded-2xl border border-line bg-card px-3.5 py-2.5 text-xs shadow-lift">
+      <p className="mb-1.5 font-bold text-fg">{label}</p>
       {payload.map((p: any) => (
-        <p key={p.dataKey} style={{ color: p.color }}>
+        <p key={p.dataKey} className="flex items-center gap-2 tabular-nums text-fg">
+          <span className="h-2 w-2 rounded-full" style={{ background: p.color }} />
           {p.name}: {formatCents(p.value)}
         </p>
       ))}
@@ -48,17 +49,17 @@ export function RevenueChart({
   const hasData = scaled.length > 0 && scaled.some((d) => d.revenue || d.expenses);
 
   return (
-    <div className="rounded-xl border border-accent/10 bg-base-900 p-5 shadow-panel">
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-sm font-semibold text-white">Revenue vs. Expenses</h2>
-        <div className="flex rounded-lg border border-accent/20 bg-base-850 p-0.5 text-xs">
+    <div className="panel p-6">
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+        <h2 className="font-display text-base font-bold tracking-tight text-fg">Revenue vs. Expenses</h2>
+        <div className="seg">
           {(["monthly", "yearly"] as const).map((v) => (
             <button
               key={v}
               onClick={() => setView(v)}
               className={
-                "rounded-md px-3 py-1 capitalize transition " +
-                (view === v ? "bg-accent text-base-950" : "text-muted hover:text-white")
+                "seg-tab capitalize " +
+                (view === v ? "seg-tab-on" : "")
               }
             >
               {v}
@@ -70,31 +71,31 @@ export function RevenueChart({
       {hasData ? (
         <ResponsiveContainer width="100%" height={280}>
           <ComposedChart data={scaled} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
-            <CartesianGrid stroke="#28283a" vertical={false} />
+            <CartesianGrid stroke="rgb(var(--line))" vertical={false} />
             <XAxis
               dataKey="label"
-              stroke="#9a9aa8"
+              stroke="rgb(var(--muted))"
               fontSize={12}
               tickLine={false}
-              axisLine={{ stroke: "#28283a" }}
+              axisLine={{ stroke: "rgb(var(--line))" }}
             />
             <YAxis
-              stroke="#9a9aa8"
+              stroke="rgb(var(--muted))"
               fontSize={12}
               tickLine={false}
               axisLine={false}
               tickFormatter={(v) => formatCents(v)}
               width={70}
             />
-            <Tooltip content={<CustomTooltip />} cursor={{ fill: "rgba(245,185,66,0.05)" }} />
-            <Legend wrapperStyle={{ fontSize: 12, color: "#9a9aa8" }} />
-            <Bar dataKey="revenue" name="Revenue" fill="#f5b942" radius={[4, 4, 0, 0]} />
-            <Bar dataKey="expenses" name="Expenses" fill="#fb7185" radius={[4, 4, 0, 0]} fillOpacity={0.75} />
+            <Tooltip content={<CustomTooltip />} cursor={{ fill: "rgb(var(--gold) / 0.08)" }} />
+            <Legend wrapperStyle={{ fontSize: 12, color: "rgb(var(--muted))" }} />
+            <Bar dataKey="revenue" name="Revenue" fill="rgb(var(--gold))" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="expenses" name="Expenses" fill="rgb(var(--danger))" radius={[4, 4, 0, 0]} fillOpacity={0.75} />
             <Line
               type="monotone"
               dataKey="profit"
               name="Net Profit"
-              stroke="#34d399"
+              stroke="rgb(var(--success))"
               strokeWidth={2}
               dot={false}
             />

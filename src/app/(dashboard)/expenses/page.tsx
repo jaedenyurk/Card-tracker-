@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { ExpenseManager } from "@/components/ExpenseManager";
+import { PageHeader } from "@/components/PageHeader";
 
 export const dynamic = "force-dynamic";
 
@@ -13,11 +14,12 @@ export default async function ExpensesPage() {
   ]);
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold text-white">Expenses</h1>
-        <p className="text-sm text-muted">Grading fees, shipping, supplies, and other business costs</p>
-      </div>
+    <div className="space-y-8">
+      <PageHeader
+        eyebrow="Cash out"
+        title="Expenses"
+        subtitle="Grading fees, shipping, supplies, and other business costs"
+      />
 
       <ExpenseManager
         expenses={expenses.map((e) => ({

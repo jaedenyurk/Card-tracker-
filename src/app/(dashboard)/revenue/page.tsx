@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { PageHeader } from "@/components/PageHeader";
 import { RevenueManager } from "@/components/RevenueManager";
 
 export const dynamic = "force-dynamic";
@@ -13,13 +14,12 @@ export default async function RevenuePage() {
   ]);
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold text-white">Revenue</h1>
-        <p className="text-sm text-muted">
-          Every dollar taken in — this feeds Total Revenue and Net P&L on the dashboard
-        </p>
-      </div>
+    <div className="space-y-8">
+      <PageHeader
+        eyebrow="Cash in"
+        title="Revenue"
+        subtitle="Every dollar taken in — this feeds Total Revenue and Net P&L on the dashboard"
+      />
 
       <RevenueManager
         revenue={revenue.map((r) => ({

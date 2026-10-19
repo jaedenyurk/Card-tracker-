@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { formatCents } from "@/lib/calculations";
 
 const inputClass =
-  "w-full rounded-lg border border-accent/20 bg-base-850 px-3 py-2 text-sm text-white placeholder:text-muted focus:border-accent focus:outline-none";
+  "w-full rounded-[14px] border border-line bg-card px-3.5 py-2.5 text-sm text-fg placeholder:text-muted transition-ui focus:border-gold focus:outline-none focus:ring-4 focus:ring-gold/[.22]";
 const labelClass = "mb-1.5 block text-xs font-medium text-muted";
 
 const CATEGORIES = ["Grading", "Shipping", "Supplies", "Inventory", "Fees", "Travel", "Software", "Other"];
@@ -57,16 +57,16 @@ export function CardExpenses({ cardId, expenses }: { cardId: string; expenses: E
   }
 
   return (
-    <div className="rounded-xl border border-accent/10 bg-base-900 p-5 shadow-panel">
+    <div className="card p-6">
       <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-white">Linked Expenses</h2>
-        <button onClick={() => setAdding((a) => !a)} className="text-xs text-accent hover:underline">
+        <h2 className="font-display text-base font-bold tracking-tight text-fg">Linked Expenses</h2>
+        <button onClick={() => setAdding((a) => !a)} className="text-xs font-semibold text-gold-text hover:underline">
           {adding ? "Cancel" : "+ Add Expense"}
         </button>
       </div>
 
       {adding && (
-        <form onSubmit={handleAdd} className="mb-4 space-y-3 rounded-lg border border-accent/20 p-4">
+        <form onSubmit={handleAdd} className="mb-4 space-y-3 rounded-2xl border border-line bg-inset p-4">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
               <label className={labelClass}>Date</label>
@@ -114,11 +114,11 @@ export function CardExpenses({ cardId, expenses }: { cardId: string; expenses: E
               placeholder="0.00"
             />
           </div>
-          {error && <p className="text-sm text-loss">{error}</p>}
+          {error && <p className="text-sm text-bad-text">{error}</p>}
           <button
             type="submit"
             disabled={loading}
-            className="rounded-lg bg-accent px-3 py-2 text-sm font-medium text-base-950 transition hover:bg-accent-soft disabled:opacity-50"
+            className="btn-gold btn-sm disabled:opacity-50"
           >
             {loading ? "Saving..." : "Add"}
           </button>
@@ -128,19 +128,19 @@ export function CardExpenses({ cardId, expenses }: { cardId: string; expenses: E
       {expenses.length === 0 ? (
         <p className="text-sm text-muted">No expenses linked to this card yet.</p>
       ) : (
-        <ul className="divide-y divide-accent/10">
+        <ul className="divide-y divide-line">
           {expenses.map((e) => (
-            <li key={e.id} className="flex items-center justify-between py-2.5">
+            <li key={e.id} className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <p className="text-sm text-white">{e.description}</p>
+                <p className="text-sm text-fg">{e.description}</p>
                 <p className="text-xs text-muted">
                   {e.category} ·{" "}
                   {new Date(e.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" })}
                 </p>
               </div>
               <div className="flex items-center gap-3">
-                <span className="font-mono text-sm text-white">{formatCents(e.amount)}</span>
-                <button onClick={() => handleDelete(e.id)} className="text-xs text-loss hover:underline">
+                <span className="tabular-nums text-sm text-fg">{formatCents(e.amount)}</span>
+                <button onClick={() => handleDelete(e.id)} className="text-xs font-semibold text-bad-text hover:underline">
                   Remove
                 </button>
               </div>
