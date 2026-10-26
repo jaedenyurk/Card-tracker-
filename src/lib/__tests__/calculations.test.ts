@@ -21,6 +21,7 @@ import {
   lotRealizedProfit,
   lotROI,
   computeLotsSummary,
+  formatSignedCents,
 } from "../calculations";
 import type { CardLike, ExpenseLike, RevenueLike, LotLike, LotSaleLike } from "../types";
 
@@ -422,6 +423,62 @@ test("lotROI is profit relative to the full amount paid for the lot", () => {
   const l = lot({ id: "l1", totalCost: 10000 });
   const sales: LotSaleLike[] = [lotSale({ id: "s1", lotId: "l1", quantity: 4, profit: 2500 })];
   assert.equal(lotROI(l, sales), 25);
+});
+
+test("lotRealizedProfit shows a loss once a lot is fully sold for less than it cost", () => {
+  const l = lot({ id: "l1", totalCards: 3, totalCost: 73800 }); // $738 cost
+  const sales: LotSaleLike[] = [
+    lotSale({ id: "s1", lotId: "l1", quantity: 1, salePrice: 30000, profit: 0 }),
+    lotSale({ id: "s2", lotId: "l1", quantity: 2, salePrice: 40000, profit: 0 }), // $700 total, waterfall floors profit at 0
+  ];
+  assert.equal(lotRealizedProfit(l, sales), -3800); // lost $38
+  assert.equal(lotROI(l, sales), (-3800 / 73800) * 100);
+});
+
+test("lotRealizedProfit books no loss while cards remain, even below cost", () => {
+  const l = lot({ id: "l1", totalCards: 10, totalCost: 73800 });
+  const sales: LotSaleLike[] = [lotSale({ id: "s1", lotId: "l1", quantity: 9, salePrice: 40000, profit: 0 })];
+  assert.equal(lotRealizedProfit(l, sales), 0);
+});
+
+test("lotRealizedProfit is unchanged for a fully sold lot that made money", () => {
+  const l = lot({ id: "l1", totalCards: 2, totalCost: 10000 });
+  const sales: LotSaleLike[] = [
+    lotSale({ id: "s1", lotId: "l1", quantity: 1, salePrice: 6000, profit: 0 }),
+    lotSale({ id: "s2", lotId: "l1", quantity: 1, salePrice: 6900, profit: 2900 }),
+  ];
+  assert.equal(lotRealizedProfit(l, sales), 2900);
+});
+
+test("lotRealizedProfit uses the implied price for legacy sales with no salePrice", () => {
+  const l = lot({ id: "l1", totalCards: 2, totalCost: 1000 }); // $5/card
+  // Legacy rows: profit -100 on one card means it sold for 500 - 100 = 400.
+  const sales: LotSaleLike[] = [
+    lotSale({ id: "s1", lotId: "l1", quantity: 1, profit: -100 }),
+    lotSale({ id: "s2", lotId: "l1", quantity: 1, profit: -100 }),
+  ];
+  assert.equal(lotRealizedProfit(l, sales), -200);
+});
+
+test("computeLotsSummary counts a fully sold lot's loss against lots that made money", () => {
+  const lots: LotLike[] = [
+    lot({ id: "winner", totalCards: 1, totalCost: 13000 }),
+    lot({ id: "loser", totalCards: 2, totalCost: 73800 }),
+  ];
+  const sales: LotSaleLike[] = [
+    lotSale({ id: "w1", lotId: "winner", quantity: 1, salePrice: 13900, profit: 900 }),
+    lotSale({ id: "l1", lotId: "loser", quantity: 2, salePrice: 70000, profit: 0 }),
+  ];
+  const summary = computeLotsSummary(lots, sales);
+  assert.equal(summary.totalRealizedProfit, 900 - 3800);
+  assert.equal(summary.overallROI, ((900 - 3800) / (13000 + 73800)) * 100);
+});
+
+test("formatSignedCents puts an explicit sign on gains and losses", () => {
+  assert.equal(formatSignedCents(12345), "+$123");
+  assert.equal(formatSignedCents(-6200), "-$62");
+  assert.equal(formatSignedCents(0), "$0");
+  assert.equal(formatSignedCents(-1), "$0"); // a cent rounds to $0, never "-$0"
 });
 
 test("lotROI is null when the lot had no cost", () => {

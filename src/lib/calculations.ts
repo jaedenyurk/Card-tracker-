@@ -453,9 +453,21 @@ export function recomputeLotSaleProfits(
   return result;
 }
 
-/** Sum of manually-entered profit across every sale recorded against a lot. */
+/**
+ * Profit or loss realized on a lot so far (cents). The recorded sale profits
+ * come from the cost-recovery waterfall, which never goes below zero, so on
+ * their own they would show $0 for a lot that sold for less than it cost.
+ * Once the last card is sold nothing can recover the shortfall, so a fully
+ * sold lot reports its true result (proceeds minus total cost) when that's a
+ * loss. While cards remain they still carry cost, so no loss is booked yet.
+ */
 export function lotRealizedProfit(lot: LotLike, sales: LotSaleLike[]): number {
-  return lotSalesFor(lot.id, sales).reduce((sum, s) => sum + s.profit, 0);
+  const lotSales = lotSalesFor(lot.id, sales);
+  const recorded = lotSales.reduce((sum, s) => sum + s.profit, 0);
+  if (lotSales.length === 0 || lotRemainingCards(lot, sales) > 0) return recorded;
+  const proceeds = lotSales.reduce((sum, s) => sum + lotSaleProceeds(lot, s), 0);
+  const net = proceeds - lot.totalCost;
+  return net < 0 ? net : recorded;
 }
 
 /** Profit realized so far relative to the full amount paid for the lot. */
@@ -469,7 +481,7 @@ export function computeLotsSummary(lots: LotLike[], sales: LotSaleLike[]): LotsS
   const totalCardsBought = lots.reduce((sum, l) => sum + l.totalCards, 0);
   const totalCardsSold = sales.reduce((sum, s) => sum + s.quantity, 0);
   const totalInvested = lots.reduce((sum, l) => sum + l.totalCost, 0);
-  const totalRealizedProfit = sales.reduce((sum, s) => sum + s.profit, 0);
+  const totalRealizedProfit = lots.reduce((sum, l) => sum + lotRealizedProfit(l, sales), 0);
 
   const lotsWithRemaining = lots.filter((l) => lotRemainingCards(l, sales) > 0);
   const remainingCostValue = lotsWithRemaining.reduce((sum, l) => sum + lotRemainingCostValue(l, sales), 0);
@@ -501,6 +513,12 @@ export function formatCents(cents: number): string {
     currency: "USD",
     maximumFractionDigits: 0,
   });
+}
+
+/** Whole-dollar amount with an explicit sign: +$123, -$62, or $0. */
+export function formatSignedCents(cents: number): string {
+  if (Math.round(cents / 100) === 0) return formatCents(0);
+  return `${cents > 0 ? "+" : "-"}${formatCents(Math.abs(cents))}`;
 }
 
 export function formatPercent(pct: number | null, digits = 1): string {

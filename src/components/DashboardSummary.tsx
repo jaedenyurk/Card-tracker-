@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import clsx from "clsx";
-import { formatCents, formatPercent, type PeriodKey } from "@/lib/calculations";
+import { formatCents, formatPercent, formatSignedCents, type PeriodKey } from "@/lib/calculations";
 import { readStoredPeriod, writeStoredPeriod } from "@/lib/periodPreference";
 import { KpiCard } from "@/components/KpiCard";
 import type { PortfolioSummary, CashFlowSummary } from "@/lib/types";
@@ -87,6 +87,12 @@ export function DashboardSummary({
                 ? "loss"
                 : "neutral"
           }
+          secondary={{
+            text: `${formatSignedCents(portfolio.realizedProfit)} ${
+              portfolio.realizedProfit < 0 ? "realized loss" : portfolio.realizedProfit > 0 ? "realized profit" : "realized"
+            }`,
+            tone: portfolio.realizedProfit > 0 ? "gain" : portfolio.realizedProfit < 0 ? "loss" : "neutral",
+          }}
           sublabel={`On sold cards · ${PERIOD_SUBLABEL[period]}`}
         />
         <KpiCard

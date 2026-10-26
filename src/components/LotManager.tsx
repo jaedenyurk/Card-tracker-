@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import clsx from "clsx";
-import { formatCents, formatPercent, recomputeLotSaleProfits } from "@/lib/calculations";
+import { formatCents, formatPercent, formatSignedCents, recomputeLotSaleProfits } from "@/lib/calculations";
 import { KpiCard } from "@/components/KpiCard";
 import type { LotRow } from "@/lib/lots";
 import type { LotsSummary } from "@/lib/types";
@@ -412,10 +412,10 @@ export function LotManager({ lots, summary }: { lots: LotRow[]; summary: LotsSum
           />
           <KpiCard label="Total Invested" value={formatCents(summary.totalInvested)} sublabel={`${summary.lotCount} lot${summary.lotCount === 1 ? "" : "s"}`} />
           <KpiCard
-            label="Realized Profit"
-            value={formatCents(summary.totalRealizedProfit)}
+            label="Realized P&L"
+            value={formatSignedCents(summary.totalRealizedProfit)}
             tone={summary.totalRealizedProfit >= 0 ? "gain" : "loss"}
-            sublabel="From logged sales"
+            sublabel="Profit and losses on logged sales"
           />
           <KpiCard
             label="Lot ROI"
@@ -449,6 +449,7 @@ export function LotManager({ lots, summary }: { lots: LotRow[]; summary: LotsSum
           {lots.map((lot) => {
             const percentSold = lot.totalCards > 0 ? (lot.soldCount / lot.totalCards) * 100 : 0;
             const soldOut = lot.remaining <= 0;
+            const soldAtLoss = soldOut && lot.realizedProfit < 0;
             const historyShown = historyOpen.has(lot.id);
 
             if (editingLotId === lot.id) {
@@ -497,10 +498,14 @@ export function LotManager({ lots, summary }: { lots: LotRow[]; summary: LotsSum
                     <span
                       className={clsx(
                         "rounded-full px-2 py-0.5 text-xs",
-                        soldOut ? "bg-ok/[.14] text-ok-text" : "bg-gold/[.14] text-gold-text"
+                        soldAtLoss
+                          ? "bg-bad/[.14] text-bad-text"
+                          : soldOut
+                            ? "bg-ok/[.14] text-ok-text"
+                            : "bg-gold/[.14] text-gold-text"
                       )}
                     >
-                      {soldOut ? "Fully sold" : `${lot.soldCount} / ${lot.totalCards} sold`}
+                      {soldAtLoss ? "Sold at a loss" : soldOut ? "Fully sold" : `${lot.soldCount} / ${lot.totalCards} sold`}
                     </span>
                     <button onClick={() => openEditLot(lot)} className="text-xs font-semibold text-gold-text hover:underline">
                       Edit
@@ -525,9 +530,9 @@ export function LotManager({ lots, summary }: { lots: LotRow[]; summary: LotsSum
                     <p className="tabular-nums text-sm text-fg">{formatCents(lot.costPerCard)}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-muted">Profit So Far</p>
+                    <p className="text-xs text-muted">{soldAtLoss ? "Loss" : soldOut ? "Profit" : "Profit So Far"}</p>
                     <p className={clsx("tabular-nums text-sm", lot.realizedProfit >= 0 ? "text-ok-text" : "text-bad-text")}>
-                      {formatCents(lot.realizedProfit)}
+                      {soldOut ? formatSignedCents(lot.realizedProfit) : formatCents(lot.realizedProfit)}
                     </p>
                   </div>
                   <div>
