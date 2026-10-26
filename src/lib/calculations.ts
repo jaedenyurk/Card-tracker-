@@ -9,6 +9,7 @@ import type {
   LotLike,
   LotSaleLike,
   LotsSummary,
+  SellThroughSummary,
 } from "./types";
 
 function toDate(d: Date | string): Date {
@@ -345,6 +346,47 @@ export function rankByROI(
   return withROI.slice(0, limit);
 }
 
+const MS_PER_DAY = 86_400_000;
+
+/** Whole days from purchase to sale (a same-day flip is 0, never negative). */
+function daysBetween(from: Date | string, to: Date | string): number {
+  return Math.max(0, Math.round((toDate(to).getTime() - toDate(from).getTime()) / MS_PER_DAY));
+}
+
+/**
+ * Average days from purchase to sale across all inventory sold in the period
+ * (by sale date): every sold card counts once, and every card sold out of a lot
+ * counts once at that lot's purchase date, so a 5-card lot sale weighs 5x.
+ * Held cards and unsold lot cards have no sell-through yet and are left out.
+ */
+export function computeSellThroughForPeriod(
+  cards: CardLike[],
+  lots: LotLike[],
+  lotSales: LotSaleLike[],
+  period: PeriodKey,
+  now: Date = new Date()
+): SellThroughSummary {
+  let totalDays = 0;
+  let salesCount = 0;
+
+  for (const c of cards) {
+    if (c.status !== "SOLD" || c.soldDate == null || !inPeriod(c.soldDate, period, now)) continue;
+    totalDays += daysBetween(c.purchaseDate, c.soldDate);
+    salesCount += 1;
+  }
+
+  const lotPurchaseDate = new Map<string, Date | string>();
+  for (const l of lots) if (l.purchaseDate != null) lotPurchaseDate.set(l.id, l.purchaseDate);
+  for (const s of lotSales) {
+    const bought = lotPurchaseDate.get(s.lotId);
+    if (bought == null || s.saleDate == null || s.quantity <= 0 || !inPeriod(s.saleDate, period, now)) continue;
+    totalDays += daysBetween(bought, s.saleDate) * s.quantity;
+    salesCount += s.quantity;
+  }
+
+  return { avgDays: salesCount > 0 ? totalDays / salesCount : null, salesCount };
+}
+
 /** Sales recorded against a specific lot. */
 export function lotSalesFor(lotId: string, sales: LotSaleLike[]): LotSaleLike[] {
   return sales.filter((s) => s.lotId === lotId);
@@ -519,6 +561,13 @@ export function formatCents(cents: number): string {
 export function formatSignedCents(cents: number): string {
   if (Math.round(cents / 100) === 0) return formatCents(0);
   return `${cents > 0 ? "+" : "-"}${formatCents(Math.abs(cents))}`;
+}
+
+/** "—" until something sells; one decimal under 10 days ("4.5 days"), whole days after. */
+export function formatDays(days: number | null): string {
+  if (days == null) return "—";
+  const shown = days < 10 ? Math.round(days * 10) / 10 : Math.round(days);
+  return `${shown} ${shown === 1 ? "day" : "days"}`;
 }
 
 export function formatPercent(pct: number | null, digits = 1): string {

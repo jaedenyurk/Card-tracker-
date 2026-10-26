@@ -4,6 +4,7 @@ import {
   computePortfolioSummaryForPeriod,
   computeCashFlowSummaryForPeriod,
   computeLotsSummary,
+  computeSellThroughForPeriod,
   monthlySeries,
   yearlySeries,
   type PeriodKey,
@@ -15,7 +16,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { RevenueChart } from "@/components/RevenueChart";
 import { ChartSkeleton, MoversSkeleton, SummarySkeleton } from "@/components/Skeletons";
 import { TopMovers } from "@/components/TopMovers";
-import type { PortfolioSummary, CashFlowSummary } from "@/lib/types";
+import type { PortfolioSummary, CashFlowSummary, SellThroughSummary } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -37,7 +38,19 @@ async function SummarySection() {
     periods.map((p) => [p, computePortfolioSummaryForPeriod(cards, expenses, p, now, lots, lotSales)])
   ) as Record<PeriodKey, PortfolioSummary>;
 
-  return <DashboardSummary cashSummaries={cashSummaries} portfolioSummaries={portfolioSummaries} lotCardsRemaining={lotCardsRemaining} />;
+  // Average days from purchase to sale, across sold cards and cards sold out of lots.
+  const sellThroughSummaries = Object.fromEntries(
+    periods.map((p) => [p, computeSellThroughForPeriod(cards, lots, lotSales, p, now)])
+  ) as Record<PeriodKey, SellThroughSummary>;
+
+  return (
+    <DashboardSummary
+      cashSummaries={cashSummaries}
+      portfolioSummaries={portfolioSummaries}
+      sellThroughSummaries={sellThroughSummaries}
+      lotCardsRemaining={lotCardsRemaining}
+    />
+  );
 }
 
 async function TrendSection() {

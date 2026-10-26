@@ -22,6 +22,8 @@ import {
   lotROI,
   computeLotsSummary,
   formatSignedCents,
+  formatDays,
+  computeSellThroughForPeriod,
 } from "../calculations";
 import type { CardLike, ExpenseLike, RevenueLike, LotLike, LotSaleLike } from "../types";
 
@@ -479,6 +481,67 @@ test("formatSignedCents puts an explicit sign on gains and losses", () => {
   assert.equal(formatSignedCents(-6200), "-$62");
   assert.equal(formatSignedCents(0), "$0");
   assert.equal(formatSignedCents(-1), "$0"); // a cent rounds to $0, never "-$0"
+});
+
+const SELL_NOW = new Date("2026-09-30T12:00:00Z");
+
+test("computeSellThroughForPeriod averages days from purchase to sale across sold cards", () => {
+  const cards: CardLike[] = [
+    card({ id: "a", status: "SOLD", purchaseDate: "2026-09-01", soldDate: "2026-09-11" }), // 10 days
+    card({ id: "b", status: "SOLD", purchaseDate: "2026-09-10", soldDate: "2026-09-30" }), // 20 days
+    card({ id: "held", status: "HELD", purchaseDate: "2026-01-01" }),
+  ];
+  const s = computeSellThroughForPeriod(cards, [], [], "ALL", SELL_NOW);
+  assert.equal(s.avgDays, 15);
+  assert.equal(s.salesCount, 2);
+});
+
+test("computeSellThroughForPeriod counts a same-day flip as 0 days, not a sale to skip", () => {
+  const cards: CardLike[] = [card({ id: "a", status: "SOLD", purchaseDate: "2026-09-05", soldDate: "2026-09-05" })];
+  const s = computeSellThroughForPeriod(cards, [], [], "ALL", SELL_NOW);
+  assert.equal(s.avgDays, 0);
+  assert.equal(s.salesCount, 1);
+});
+
+test("computeSellThroughForPeriod weights each card sold out of a lot by its quantity", () => {
+  const cards: CardLike[] = [card({ id: "a", status: "SOLD", purchaseDate: "2026-09-01", soldDate: "2026-09-03" })]; // 2 days
+  const lots: LotLike[] = [lot({ id: "l1", purchaseDate: "2026-08-01" })];
+  const lotSales: LotSaleLike[] = [
+    lotSale({ id: "s1", lotId: "l1", quantity: 3, saleDate: "2026-08-11" }), // 10 days x 3 cards
+  ];
+  const s = computeSellThroughForPeriod(cards, lots, lotSales, "ALL", SELL_NOW);
+  assert.equal(s.salesCount, 4);
+  assert.equal(s.avgDays, (2 + 30) / 4);
+});
+
+test("computeSellThroughForPeriod scopes to the period a card or lot sale was made in", () => {
+  const cards: CardLike[] = [
+    card({ id: "now", status: "SOLD", purchaseDate: "2026-09-20", soldDate: "2026-09-25" }), // 5 days, this month
+    card({ id: "old", status: "SOLD", purchaseDate: "2025-01-01", soldDate: "2025-04-11" }), // 100 days, last year
+  ];
+  assert.equal(computeSellThroughForPeriod(cards, [], [], "MONTH", SELL_NOW).avgDays, 5);
+  assert.equal(computeSellThroughForPeriod(cards, [], [], "YTD", SELL_NOW).avgDays, 5);
+  assert.equal(computeSellThroughForPeriod(cards, [], [], "ALL", SELL_NOW).avgDays, 52.5);
+});
+
+test("computeSellThroughForPeriod is null with nothing sold, and skips rows missing a date", () => {
+  const cards: CardLike[] = [
+    card({ id: "held", status: "HELD" }),
+    card({ id: "nodate", status: "SOLD", purchaseDate: "2026-09-01", soldDate: null }),
+  ];
+  const lots: LotLike[] = [lot({ id: "l1" })]; // no purchaseDate
+  const lotSales: LotSaleLike[] = [lotSale({ id: "s1", lotId: "l1", quantity: 2, saleDate: "2026-09-10" })];
+  const s = computeSellThroughForPeriod(cards, lots, lotSales, "ALL", SELL_NOW);
+  assert.equal(s.avgDays, null);
+  assert.equal(s.salesCount, 0);
+});
+
+test("formatDays shows a dash, one decimal under 10 days, whole days after, and singular for 1", () => {
+  assert.equal(formatDays(null), "—");
+  assert.equal(formatDays(4.54), "4.5 days");
+  assert.equal(formatDays(1), "1 day");
+  assert.equal(formatDays(0), "0 days");
+  assert.equal(formatDays(17.6), "18 days");
 });
 
 test("lotROI is null when the lot had no cost", () => {

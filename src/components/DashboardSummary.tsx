@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from "react";
 import clsx from "clsx";
-import { formatCents, formatPercent, formatSignedCents, type PeriodKey } from "@/lib/calculations";
+import { formatCents, formatDays, formatPercent, formatSignedCents, type PeriodKey } from "@/lib/calculations";
 import { readStoredPeriod, writeStoredPeriod } from "@/lib/periodPreference";
 import { KpiCard } from "@/components/KpiCard";
-import type { PortfolioSummary, CashFlowSummary } from "@/lib/types";
+import type { PortfolioSummary, CashFlowSummary, SellThroughSummary } from "@/lib/types";
 
 const PERIODS: { key: PeriodKey; label: string }[] = [
   { key: "MONTH", label: "This Month" },
@@ -22,10 +22,12 @@ const PERIOD_SUBLABEL: Record<PeriodKey, string> = {
 export function DashboardSummary({
   cashSummaries,
   portfolioSummaries,
+  sellThroughSummaries,
   lotCardsRemaining,
 }: {
   cashSummaries: Record<PeriodKey, CashFlowSummary>;
   portfolioSummaries: Record<PeriodKey, PortfolioSummary>;
+  sellThroughSummaries: Record<PeriodKey, SellThroughSummary>;
   lotCardsRemaining: number;
 }) {
   const [period, setPeriodState] = useState<PeriodKey>("MONTH");
@@ -42,6 +44,7 @@ export function DashboardSummary({
 
   const cash = cashSummaries[period];
   const portfolio = portfolioSummaries[period];
+  const sellThrough = sellThroughSummaries[period];
 
   return (
     <div className="space-y-4">
@@ -116,6 +119,15 @@ export function DashboardSummary({
           value={formatPercent(portfolio.overallROI)}
           tone={portfolio.overallROI != null && portfolio.overallROI >= 0 ? "gain" : portfolio.overallROI != null ? "loss" : "neutral"}
           sublabel="Realized + unrealized, all time"
+        />
+        <KpiCard
+          label="Avg. Sell-Through"
+          value={formatDays(sellThrough.avgDays)}
+          sublabel={
+            sellThrough.salesCount > 0
+              ? `Purchase to sale · ${sellThrough.salesCount} ${sellThrough.salesCount === 1 ? "card" : "cards"} sold · ${PERIOD_SUBLABEL[period]}`
+              : `No sales yet · ${PERIOD_SUBLABEL[period]}`
+          }
         />
       </div>
     </div>

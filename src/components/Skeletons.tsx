@@ -5,7 +5,7 @@ export function SummarySkeleton() {
     <div className="space-y-4" aria-busy="true" aria-label="Loading summary">
       <div className="skeleton h-10 w-72 max-w-full !rounded-full" />
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {Array.from({ length: 8 }, (_, index) => (
+        {Array.from({ length: 9 }, (_, index) => (
           <div key={index} className="card p-6">
             <div className="skeleton h-3 w-24 max-w-full" />
             <div className="skeleton mt-4 h-8 w-32 max-w-full" />

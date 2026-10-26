@@ -61,12 +61,20 @@ export interface PortfolioSummary {
   allTimeCapitalDeployed: number; // cogs + inventoryCostValue (total ever spent acquiring + prepping cards)
 }
 
+// How long inventory takes to sell: days from purchase to sale, averaged over
+// every card sold (individual cards plus each card sold out of a lot).
+export interface SellThroughSummary {
+  avgDays: number | null; // null until something has sold
+  salesCount: number; // cards sold in the period
+}
+
 // Shape shared by the Prisma Lot model and any plain object used in tests.
 export interface LotLike {
   id: string;
   totalCards: number;
   totalCost: number; // cents
   estValue?: number | null; // cents, estimated current value of the not-yet-sold cards
+  purchaseDate?: Date | string; // when the lot was bought; used for sell-through time
 }
 
 export interface LotSaleLike {
@@ -75,6 +83,7 @@ export interface LotSaleLike {
   quantity: number;
   profit: number; // cents
   salePrice?: number | null; // cents; null/absent only for legacy sales logged before salePrice existed
+  saleDate?: Date | string; // when these cards sold; used for sell-through time
 }
 
 export interface LotsSummary {

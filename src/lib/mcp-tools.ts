@@ -5,6 +5,7 @@ import { dollarsToCents, centsToDollars } from "./money";
 import {
   computeCashFlowSummaryForPeriod,
   computePortfolioSummaryForPeriod,
+  computeSellThroughForPeriod,
   rankByROI,
   recomputeLotSaleProfits,
   type PeriodKey,
@@ -439,7 +440,7 @@ export function registerTools(server: McpServer): void {
     {
       title: "Get Dashboard Summary",
       description:
-        "Get the same KPIs shown on the app's Dashboard: Total Revenue/Expenses/Net P&L (from the Revenue and Expenses pages only), plus Realized ROI, inventory value, unrealized P&L, and Overall ROI (from Inventory).",
+        "Get the same KPIs shown on the app's Dashboard: Total Revenue/Expenses/Net P&L (from the Revenue and Expenses pages only), plus Realized ROI, inventory value, unrealized P&L, and Overall ROI (from Inventory), and average sell-through time (days from purchase to sale across sold cards and lot sales).",
       inputSchema: z.object({
         period: z.enum(["MONTH", "YTD", "ALL"]).optional().describe("Defaults to MONTH (current calendar month)"),
       }),
@@ -454,7 +455,9 @@ export function registerTools(server: McpServer): void {
       ]);
       const lotSales = lots.flatMap((l) => l.sales);
       const cash = computeCashFlowSummaryForPeriod(revenues, expenses, p);
-      const portfolio = computePortfolioSummaryForPeriod(cards, expenses, p, new Date(), lots, lotSales);
+      const now = new Date();
+      const portfolio = computePortfolioSummaryForPeriod(cards, expenses, p, now, lots, lotSales);
+      const sellThrough = computeSellThroughForPeriod(cards, lots, lotSales, p, now);
       return json({
         period: p,
         totalRevenue: centsToDollars(cash.totalRevenue),
@@ -469,6 +472,8 @@ export function registerTools(server: McpServer): void {
         inventoryEstValue: portfolio.inventoryMarketValue != null ? centsToDollars(portfolio.inventoryMarketValue) : null,
         unrealizedPnL: portfolio.unrealizedProfit != null ? centsToDollars(portfolio.unrealizedProfit) : null,
         overallROI: portfolio.overallROI != null ? round1(portfolio.overallROI) : null,
+        avgSellThroughDays: sellThrough.avgDays != null ? round1(sellThrough.avgDays) : null,
+        cardsSoldForSellThrough: sellThrough.salesCount,
       });
     }
   );
