@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { PrismaClient } from "@prisma/client";
-import { syncItem, type SyncClient } from "../plaid";
+import { plaidEnvName, syncItem, type SyncClient } from "../plaid";
 import type { PlaidTxLike } from "../bankFeed";
 
 // A tiny in-memory stand-in for the four Prisma tables the sync touches.
@@ -171,4 +171,20 @@ test("an empty first sync (Plaid hasn't finished) saves no cursor so the next sy
   const { db, item: row } = fakeDb();
   await syncItem(item, deps(db, scriptedPlaid([{ next_cursor: "" }]).plaid));
   assert.equal(row.cursor, null);
+});
+
+test("a bad PLAID_ENV is rejected without printing what was in it", () => {
+  const before = process.env.PLAID_ENV;
+  try {
+    process.env.PLAID_ENV = "144f80c41d9de342b2e9805d178d58"; // e.g. a secret pasted into the wrong box
+    assert.throws(
+      () => plaidEnvName(),
+      (e: Error) => e.message.includes("sandbox") && !e.message.includes("144f80")
+    );
+    process.env.PLAID_ENV = "Production";
+    assert.equal(plaidEnvName(), "production");
+  } finally {
+    if (before === undefined) delete process.env.PLAID_ENV;
+    else process.env.PLAID_ENV = before;
+  }
 });

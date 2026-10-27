@@ -12,7 +12,8 @@ export function plaidConfigured(): boolean {
 export function plaidEnvName(): "sandbox" | "production" {
   const env = (process.env.PLAID_ENV ?? "sandbox").toLowerCase();
   if (env !== "sandbox" && env !== "production") {
-    throw new Error(`PLAID_ENV must be "sandbox" or "production" (got "${env}")`);
+    // Never echo the value back: a mis-pasted secret would end up on screen.
+    throw new Error('PLAID_ENV must be exactly "sandbox" or "production"');
   }
   return env;
 }
