@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import clsx from "clsx";
 import { usePlaidLink } from "react-plaid-link";
-import { formatCents } from "@/lib/calculations";
+import { formatCents, inPeriod, type PeriodKey } from "@/lib/calculations";
+import { readStoredPeriod, writeStoredPeriod } from "@/lib/periodPreference";
 import { EXPENSE_CATEGORIES, REVENUE_CATEGORIES, isBulkSafe, type Suggestion } from "@/lib/bankFeed";
 
 const inputClass =
@@ -45,6 +46,12 @@ export interface BankRuleRow {
 }
 
 type Notice = { kind: "ok" | "error"; text: string };
+
+const PERIODS: { key: PeriodKey; label: string; phrase: string }[] = [
+  { key: "MONTH", label: "This Month", phrase: "this month" },
+  { key: "YTD", label: "YTD", phrase: "this year" },
+  { key: "ALL", label: "All-Time", phrase: "all time" },
+];
 
 const formatDate = (iso: string) =>
   new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" });
@@ -335,7 +342,7 @@ export function BankFeed({
   items: BankItemRow[];
   rules: BankRuleRow[];
   rows: BankTxRow[];
-  counts: Record<BankTab, number>;
+  counts: Record<BankTab, Record<PeriodKey, number>>;
   tab: BankTab;
   stale: boolean;
   truncated: boolean;
@@ -346,6 +353,15 @@ export function BankFeed({
   const [linkToken, setLinkToken] = useState<string | null>(null);
   const [redirectUri, setRedirectUri] = useState<string | undefined>(undefined);
   const autoSynced = useRef(false);
+  const [period, setPeriodState] = useState<PeriodKey>("MONTH");
+
+  // Same shared period as the Dashboard, Revenue and Expenses pages, read after mount so the first paint matches the server.
+  useEffect(() => setPeriodState(readStoredPeriod()), []);
+
+  function setPeriod(next: PeriodKey) {
+    setPeriodState(next);
+    writeStoredPeriod(next);
+  }
 
   async function finishConnect(publicToken: string | null, institutionName: string | undefined) {
     writeStoredToken(null);
@@ -484,7 +500,13 @@ export function BankFeed({
 
   if (!configured) return <SetupPanel />;
 
-  const bulkIds = tab === "review" ? rows.filter((r) => r.suggestion && isBulkSafe(r.suggestion)).map((r) => r.id) : [];
+  // Only the chosen period is listed, and "Apply to N" only touches what's on screen.
+  const now = new Date();
+  const visible = rows.filter((r) => inPeriod(r.date, period, now));
+  const periodPhrase = PERIODS.find((p) => p.key === period)!.phrase;
+  const hiddenByPeriod = counts[tab].ALL - counts[tab][period];
+
+  const bulkIds = tab === "review" ? visible.filter((r) => r.suggestion && isBulkSafe(r.suggestion)).map((r) => r.id) : [];
   const TABS: { key: BankTab; label: string }[] = [
     { key: "review", label: "To review" },
     { key: "added", label: "Added" },
@@ -528,13 +550,21 @@ export function BankFeed({
           <AccountsCard items={items} busy={busy} onSave={saveAccounts} onDisconnect={disconnect} />
 
           <div className="seg">
+            {PERIODS.map((p) => (
+              <button key={p.key} onClick={() => setPeriod(p.key)} className={clsx("seg-tab", period === p.key && "seg-tab-on")}>
+                {p.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="seg">
             {TABS.map((t) => (
               <Link
                 key={t.key}
                 href={t.key === "review" ? "/bank" : `/bank?tab=${t.key}`}
                 className={clsx("seg-tab", tab === t.key && "seg-tab-on")}
               >
-                {t.label} ({counts[t.key]})
+                {t.label} ({counts[t.key][period]})
               </Link>
             ))}
           </div>
@@ -551,21 +581,22 @@ export function BankFeed({
           )}
 
           <div className="card">
-            {rows.length === 0 ? (
+            {visible.length === 0 ? (
               <p className="px-5 py-10 text-center text-sm text-muted">
                 {tab === "review"
                   ? !items.some((i) => i.accounts.some((a) => a.tracked))
                     ? "Choose the accounts to use above to start importing."
-                    : counts.review === 0 && counts.added + counts.ignored === 0
+                    : counts.review.ALL === 0 && counts.added.ALL + counts.ignored.ALL === 0
                     ? "No transactions yet. Press Sync now; a new connection can take a minute to fill in."
-                    : "You're all caught up."
+                    : `You're all caught up for ${periodPhrase}.`
                   : tab === "added"
-                    ? "Nothing added from the bank yet."
-                    : "Nothing ignored."}
+                    ? `Nothing added from the bank ${periodPhrase}.`
+                    : `Nothing ignored ${periodPhrase}.`}
+                {hiddenByPeriod > 0 && ` ${hiddenByPeriod} more in other periods: switch the period above to see them.`}
               </p>
             ) : (
               <ul className="divide-y divide-line">
-                {rows.map((row) =>
+                {visible.map((row) =>
                   tab === "review" ? (
                     <ReviewRow key={row.id} row={row} busy={busy === row.id || busy === "bulk"} onAct={act} />
                   ) : (
@@ -600,7 +631,7 @@ export function BankFeed({
               </ul>
             )}
           </div>
-          {truncated && <p className="text-center text-xs text-muted">Showing the newest {rows.length}. Work through these and the rest will follow.</p>}
+          {truncated && visible.length === rows.length && <p className="text-center text-xs text-muted">Showing the newest {rows.length}. Work through these and the rest will follow.</p>}
 
           {rules.length > 0 && (
             <details className="card px-5 py-4">

@@ -1,6 +1,7 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { plaidConfigured } from "@/lib/plaid";
+import { inPeriod, type PeriodKey } from "@/lib/calculations";
 import { directionOf, findDuplicate, suggestFor } from "@/lib/bankFeed";
 import { BankFeed, type BankItemRow, type BankRuleRow, type BankTab, type BankTxRow } from "@/components/BankFeed";
 import { PageHeader } from "@/components/PageHeader";
@@ -32,7 +33,8 @@ export default async function BankPage({ searchParams }: { searchParams: { tab?:
   const tab: BankTab = searchParams.tab === "added" || searchParams.tab === "ignored" ? searchParams.tab : "review";
   const configured = plaidConfigured();
 
-  const [items, rules, counts, txs] = await Promise.all([
+  const now = new Date();
+  const [items, rules, summary, txs] = await Promise.all([
     prisma.plaidItem.findMany({
       // Never select accessToken: it stays on the server.
       select: {
@@ -45,11 +47,11 @@ export default async function BankPage({ searchParams }: { searchParams: { tab?:
       orderBy: { createdAt: "asc" },
     }),
     prisma.bankRule.findMany({ orderBy: { createdAt: "desc" } }),
-    Promise.all([
-      prisma.bankTransaction.count({ where: WHERE.review }),
-      prisma.bankTransaction.count({ where: WHERE.added }),
-      prisma.bankTransaction.count({ where: WHERE.ignored }),
-    ]),
+    // Just enough of every tracked transaction to count each tab for each period.
+    prisma.bankTransaction.findMany({
+      where: tracked,
+      select: { date: true, status: true, expenseId: true, revenueId: true },
+    }),
     prisma.bankTransaction.findMany({
       where: WHERE[tab],
       include: { account: { select: { name: true, mask: true } } },
@@ -107,9 +109,18 @@ export default async function BankPage({ searchParams }: { searchParams: { tab?:
     category: r.category,
   }));
 
-  const now = Date.now();
+  // Same buckets as the WHERE clauses above, counted per period so the toggle can show matching numbers.
+  const PERIODS: PeriodKey[] = ["MONTH", "YTD", "ALL"];
+  const blank = (): Record<PeriodKey, number> => ({ MONTH: 0, YTD: 0, ALL: 0 });
+  const counts: Record<BankTab, Record<PeriodKey, number>> = { review: blank(), added: blank(), ignored: blank() };
+  for (const t of summary) {
+    const bucket: BankTab =
+      t.status === "IGNORED" ? "ignored" : t.status === "NEW" || (!t.expenseId && !t.revenueId) ? "review" : "added";
+    for (const p of PERIODS) if (inPeriod(t.date, p, now)) counts[bucket][p]++;
+  }
+
   const stale = items.some(
-    (i) => i.accounts.some((a) => a.tracked) && (!i.lastSyncedAt || now - i.lastSyncedAt.getTime() > STALE_AFTER_MS)
+    (i) => i.accounts.some((a) => a.tracked) && (!i.lastSyncedAt || now.getTime() - i.lastSyncedAt.getTime() > STALE_AFTER_MS)
   );
 
   return (
@@ -125,10 +136,10 @@ export default async function BankPage({ searchParams }: { searchParams: { tab?:
         items={itemRows}
         rules={ruleRows}
         rows={rows}
-        counts={{ review: counts[0], added: counts[1], ignored: counts[2] }}
+        counts={counts}
         tab={tab}
         stale={stale}
-        truncated={counts[["review", "added", "ignored"].indexOf(tab)] > MAX_ROWS}
+        truncated={counts[tab].ALL > MAX_ROWS}
       />
     </div>
   );
