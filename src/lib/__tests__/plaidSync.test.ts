@@ -7,8 +7,9 @@ import type { PlaidTxLike } from "../bankFeed";
 // A tiny in-memory stand-in for the four Prisma tables the sync touches.
 type Row = Record<string, unknown> & { plaidTransactionId: string; status: string };
 
-function fakeDb() {
-  const accounts: { id: string; plaidAccountId: string; itemId: string; name: string }[] = [];
+// `trackNewAccounts` stands in for the column default: the real one is off, but most tests want accounts on.
+function fakeDb(trackNewAccounts = true) {
+  const accounts: { id: string; plaidAccountId: string; itemId: string; name: string; tracked: boolean }[] = [];
   const txs: Row[] = [];
   const item: { cursor: string | null; lastSyncedAt: Date | null; syncError: string | null } = {
     cursor: null,
@@ -20,9 +21,10 @@ function fakeDb() {
       upsert: async ({ where, create, update }: any) => {
         const found = accounts.find((a) => a.plaidAccountId === where.plaidAccountId);
         if (found) Object.assign(found, update);
-        else accounts.push({ id: `acct_${accounts.length + 1}`, ...create });
+        else accounts.push({ id: `acct_${accounts.length + 1}`, tracked: trackNewAccounts, ...create });
       },
-      findMany: async ({ where }: any) => accounts.filter((a) => a.itemId === where.itemId),
+      findMany: async ({ where }: any) =>
+        accounts.filter((a) => a.itemId === where.itemId && (where.tracked === undefined || a.tracked === where.tracked)),
     },
     bankTransaction: {
       createMany: async ({ data }: any) => {
@@ -187,4 +189,24 @@ test("a bad PLAID_ENV is rejected without printing what was in it", () => {
     if (before === undefined) delete process.env.PLAID_ENV;
     else process.env.PLAID_ENV = before;
   }
+});
+
+test("transactions from accounts that aren't switched on are dropped, never stored", async () => {
+  const { db, txs, accounts } = fakeDb(false); // new accounts start off, like the real default
+  const second = { account_id: "plaid_acct_2", name: "Personal Checking", mask: "9999", type: "depository" };
+  const page = {
+    added: [tx("biz", { account_id: "plaid_acct" }), tx("personal", { account_id: "plaid_acct_2" })],
+    accounts: [account, second],
+    next_cursor: "c",
+  };
+  // First sync: nothing is selected yet, so nothing is kept.
+  assert.deepEqual(await syncItem(item, deps(db, scriptedPlaid([page]).plaid)), { added: 0, modified: 0, removed: 0 });
+  assert.equal(txs.length, 0);
+  assert.equal(accounts.length, 2); // both accounts are still listed so the user can choose
+
+  // The user switches on only the business account and the history is pulled again.
+  accounts.find((a) => a.plaidAccountId === "plaid_acct")!.tracked = true;
+  const result = await syncItem(item, deps(db, scriptedPlaid([page]).plaid));
+  assert.equal(result.added, 1);
+  assert.deepEqual(txs.map((t) => t.plaidTransactionId), ["biz"]);
 });

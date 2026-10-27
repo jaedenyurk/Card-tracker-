@@ -108,7 +108,9 @@ export default async function BankPage({ searchParams }: { searchParams: { tab?:
   }));
 
   const now = Date.now();
-  const stale = items.some((i) => !i.lastSyncedAt || now - i.lastSyncedAt.getTime() > STALE_AFTER_MS);
+  const stale = items.some(
+    (i) => i.accounts.some((a) => a.tracked) && (!i.lastSyncedAt || now - i.lastSyncedAt.getTime() > STALE_AFTER_MS)
+  );
 
   return (
     <div className="space-y-8">

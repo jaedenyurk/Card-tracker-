@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
 import {
+  diffAccountSelection,
   findDuplicate,
   isBulkSafe,
   normalizeMerchantKey,
@@ -173,4 +174,15 @@ test("assertTokenKey accepts a 32-byte base64 key and rejects anything else with
     if (before === undefined) delete process.env.PLAID_TOKEN_KEY;
     else process.env.PLAID_TOKEN_KEY = before;
   }
+});
+
+test("diffAccountSelection reports what a save switches on and off, and ignores ids the login doesn't own", () => {
+  const accounts = [
+    { id: "a", tracked: true },
+    { id: "b", tracked: true },
+    { id: "c", tracked: false },
+  ];
+  assert.deepEqual(diffAccountSelection(accounts, ["a", "c", "someone-elses"]), { on: ["c"], off: ["b"], selected: ["a", "c"] });
+  assert.deepEqual(diffAccountSelection(accounts, ["a", "b"]), { on: [], off: [], selected: ["a", "b"] });
+  assert.deepEqual(diffAccountSelection(accounts, []), { on: [], off: ["a", "b"], selected: [] });
 });

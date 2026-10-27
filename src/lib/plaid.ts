@@ -113,6 +113,7 @@ const CHUNK = 500; // keeps createMany well under Postgres's bind-parameter limi
 /**
  * Pulls everything new for one connected login and files it in the review inbox.
  *
+ * - Only selected accounts are stored (see `tracked`); the rest of the login is discarded.
  * - Pending charges are skipped: they come back as a new posted transaction in a
  *   day or two, and importing both would show the same purchase twice.
  * - Re-running is safe: inserts skip rows that exist, updates only touch rows
@@ -137,8 +138,10 @@ export async function syncItem(
         update: fields,
       });
     }
+    // Only accounts the user switched on are kept: anything from the others is dropped
+    // on arrival, never stored or shown.
     const accounts = await db.bankAccount.findMany({
-      where: { itemId: item.id },
+      where: { itemId: item.id, tracked: true },
       select: { id: true, plaidAccountId: true },
     });
     const accountIdByPlaid = new Map(accounts.map((a) => [a.plaidAccountId, a.id]));

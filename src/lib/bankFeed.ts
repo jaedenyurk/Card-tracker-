@@ -136,6 +136,23 @@ export function suggestFor(
   return suggestFromPlaid(tx.plaidCategory, direction);
 }
 
+/**
+ * What saving a new account selection changes: which accounts just got switched
+ * on (they need their history pulled) and which just got switched off (their
+ * unreviewed transactions are cleared). Ids the item doesn't own are ignored.
+ */
+export function diffAccountSelection(
+  accounts: { id: string; tracked: boolean }[],
+  selectedIds: string[]
+): { on: string[]; off: string[]; selected: string[] } {
+  const wanted = new Set(selectedIds);
+  return {
+    on: accounts.filter((a) => wanted.has(a.id) && !a.tracked).map((a) => a.id),
+    off: accounts.filter((a) => !wanted.has(a.id) && a.tracked).map((a) => a.id),
+    selected: accounts.filter((a) => wanted.has(a.id)).map((a) => a.id),
+  };
+}
+
 export interface EntryLike {
   id: string;
   date: Date | string;

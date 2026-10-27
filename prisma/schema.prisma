@@ -178,7 +178,7 @@ model BankAccount {
   name           String
   mask           String?   // last 4 digits, as Plaid reports them
   type           String    // depository, credit, ...
-  tracked        Boolean   @default(true) // untracked accounts (e.g. personal) stay out of the review inbox
+  tracked        Boolean   @default(false) // only accounts the user switches on are synced; everything else is never stored
 
   transactions   BankTransaction[]
 

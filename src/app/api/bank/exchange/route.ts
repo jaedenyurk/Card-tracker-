@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { assertTokenKey, encryptToken } from "@/lib/plaidCrypto";
-import { getPlaid, plaidConfigured, plaidErrorMessage, syncItem } from "@/lib/plaid";
+import { getPlaid, plaidConfigured, plaidErrorMessage } from "@/lib/plaid";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 60; // the first pull of a bank's history can take a while
 
 // Called once after the user finishes Plaid's login window: trades the one-time
-// public token for a long-lived access token, stores it encrypted, and runs the first sync.
+// public token for a long-lived access token and stores it encrypted. Nothing is imported
+// yet: every account starts switched off until the user picks which ones to use.
 export async function POST(req: Request) {
   if (!plaidConfigured()) return NextResponse.json({ error: "Plaid isn't set up yet" }, { status: 503 });
   const body = await req.json().catch(() => null);
@@ -42,13 +42,7 @@ export async function POST(req: Request) {
       });
     }
 
-    try {
-      const result = await syncItem(item);
-      return NextResponse.json({ institutionName, accounts: accounts.data.accounts.length, ...result });
-    } catch (e) {
-      // Connected fine; the first pull just didn't finish. "Sync now" retries it.
-      return NextResponse.json({ institutionName, accounts: accounts.data.accounts.length, added: 0, syncError: (e as Error).message });
-    }
+    return NextResponse.json({ institutionName, accounts: accounts.data.accounts.length });
   } catch (e) {
     // If the bank was linked but we couldn't save it, release it at Plaid rather than leave it dangling.
     if (accessToken) await getPlaid().itemRemove({ access_token: accessToken }).catch(() => undefined);

@@ -119,6 +119,119 @@ function SetupPanel() {
   );
 }
 
+const ACCOUNT_KIND: Record<string, string> = {
+  depository: "Bank account",
+  credit: "Credit card",
+  loan: "Loan",
+  investment: "Investment",
+};
+
+// Which of each connected login's accounts this app should use. Only checked accounts are
+// ever synced or stored; the rest of the login is never pulled in.
+function AccountsCard({
+  items,
+  busy,
+  onSave,
+  onDisconnect,
+}: {
+  items: BankItemRow[];
+  busy: string | null;
+  onSave: (item: BankItemRow, accountIds: string[]) => void;
+  onDisconnect: (item: BankItemRow) => void;
+}) {
+  const saved = (item: BankItemRow) => item.accounts.filter((a) => a.tracked).map((a) => a.id);
+  const [draft, setDraft] = useState<Record<string, string[]>>(() => Object.fromEntries(items.map((i) => [i.id, saved(i)])));
+
+  // Pick up the saved selection again after a save or sync refreshes the page data.
+  useEffect(() => {
+    setDraft(Object.fromEntries(items.map((i) => [i.id, saved(i)])));
+  }, [items]);
+
+  return (
+    <div className="card p-5">
+      <p className="font-display text-base font-bold tracking-tight text-fg">Accounts to use</p>
+      <p className="mt-1 text-sm text-muted">
+        Only the accounts you check here are imported. Transactions from anything unchecked are never saved to this app, so a
+        personal account that shares a login stays out.
+      </p>
+      <ul className="mt-4 space-y-5">
+        {items.map((item) => {
+          const chosen = draft[item.id] ?? saved(item);
+          const was = saved(item);
+          const dirty = chosen.length !== was.length || chosen.some((id) => !was.includes(id));
+          const none = was.length === 0;
+          return (
+            <li key={item.id} className={clsx(none && "rounded-[14px] bg-gold/[.10] p-4")}>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <p className="text-sm font-medium text-fg">{item.institutionName}</p>
+                  <p className="text-xs text-muted">
+                    {item.lastSyncedAt
+                      ? `Last synced ${new Date(item.lastSyncedAt).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}`
+                      : "Not synced yet"}
+                  </p>
+                </div>
+                <button
+                  onClick={() => onDisconnect(item)}
+                  disabled={busy === item.id}
+                  className="text-xs font-semibold text-bad-text hover:underline disabled:opacity-50"
+                >
+                  Disconnect
+                </button>
+              </div>
+              {none && <p className="mt-2 text-sm font-medium text-fg">Choose which accounts to use, then press Save to start importing.</p>}
+              {item.syncError && <p className="mt-1 text-xs text-bad-text">{item.syncError}</p>}
+              <ul className="mt-3 space-y-2">
+                {item.accounts.map((a) => (
+                  <li key={a.id}>
+                    <label className="flex items-center gap-2.5 text-sm text-fg">
+                      <input
+                        type="checkbox"
+                        checked={chosen.includes(a.id)}
+                        onChange={(e) =>
+                          setDraft((d) => ({
+                            ...d,
+                            [item.id]: e.target.checked ? [...chosen, a.id] : chosen.filter((id) => id !== a.id),
+                          }))
+                        }
+                        className="accent-gold-deep"
+                      />
+                      <span>
+                        {a.name}
+                        {a.mask && <span className="text-muted"> ··{a.mask}</span>}
+                      </span>
+                      <span className="text-xs text-muted">{ACCOUNT_KIND[a.type] ?? a.type}</span>
+                    </label>
+                  </li>
+                ))}
+              </ul>
+              {(dirty || none) && (
+                <div className="mt-3 flex flex-wrap items-center gap-3">
+                  <button
+                    onClick={() => onSave(item, chosen)}
+                    disabled={busy != null || (none && chosen.length === 0)}
+                    className="btn-gold btn-sm disabled:opacity-50"
+                  >
+                    {busy === `accounts-${item.id}` ? "Saving…" : "Save accounts"}
+                  </button>
+                  {dirty && !none && (
+                    <button onClick={() => setDraft((d) => ({ ...d, [item.id]: was }))} className="text-xs font-semibold text-muted hover:underline">
+                      Undo changes
+                    </button>
+                  )}
+                  {dirty && was.some((id) => !chosen.includes(id)) && (
+                    <span className="text-xs text-muted">Unchecked accounts lose their unreviewed transactions. Anything already added stays.</span>
+                  )}
+                </div>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
 function ReviewRow({
   row,
   busy,
@@ -243,17 +356,10 @@ export function BankFeed({
     const { ok, data } = await request("/api/bank/exchange", "POST", { publicToken, institutionName });
     setBusy(null);
     if (!ok) return setNotice({ kind: "error", text: data.error ?? "Couldn't finish connecting" });
-    setNotice(
-      data.syncError
-        ? { kind: "error", text: `Connected ${data.institutionName}, but the first sync didn't finish: ${data.syncError}` }
-        : {
-            kind: "ok",
-            text:
-              data.added > 0
-                ? `Connected ${data.institutionName}: ${data.added} transactions are ready to review.`
-                : `Connected ${data.institutionName}. If nothing shows up yet, give the bank a minute and press Sync now.`,
-          }
-    );
+    setNotice({
+      kind: "ok",
+      text: `Connected ${data.institutionName}. Choose which of its ${data.accounts} accounts to use below, then press Save accounts to start importing.`,
+    });
     router.replace("/bank");
     router.refresh();
   }
@@ -348,8 +454,26 @@ export function BankFeed({
     router.refresh();
   }
 
-  async function toggleAccount(id: string, tracked: boolean) {
-    await request(`/api/bank/accounts/${id}`, "PATCH", { tracked });
+  async function saveAccounts(item: BankItemRow, accountIds: string[]) {
+    setBusy(`accounts-${item.id}`);
+    const saved = await request(`/api/bank/items/${item.id}/accounts`, "PUT", { accountIds });
+    if (!saved.ok) {
+      setBusy(null);
+      return setNotice({ kind: "error", text: saved.data.error ?? "Couldn't save the accounts" });
+    }
+    if (accountIds.length === 0) {
+      setBusy(null);
+      setNotice({ kind: "ok", text: "No accounts selected, so nothing will be imported from this login." });
+      return router.refresh();
+    }
+    const sync = await request("/api/bank/sync", "POST", { itemId: item.id });
+    setBusy(null);
+    const failed = (sync.data.results ?? []).find((r: { error?: string }) => r.error);
+    if (!sync.ok || failed) return setNotice({ kind: "error", text: failed?.error ?? sync.data.error ?? "Saved, but the sync didn't finish" });
+    setNotice({
+      kind: "ok",
+      text: sync.data.added > 0 ? `Saved. Pulled in ${sync.data.added} transactions from the selected accounts.` : "Saved. Nothing new yet; press Sync now in a minute.",
+    });
     router.refresh();
   }
 
@@ -401,6 +525,8 @@ export function BankFeed({
         </div>
       ) : (
         <>
+          <AccountsCard items={items} busy={busy} onSave={saveAccounts} onDisconnect={disconnect} />
+
           <div className="seg">
             {TABS.map((t) => (
               <Link
@@ -428,7 +554,9 @@ export function BankFeed({
             {rows.length === 0 ? (
               <p className="px-5 py-10 text-center text-sm text-muted">
                 {tab === "review"
-                  ? counts.review === 0 && counts.added + counts.ignored === 0
+                  ? !items.some((i) => i.accounts.some((a) => a.tracked))
+                    ? "Choose the accounts to use above to start importing."
+                    : counts.review === 0 && counts.added + counts.ignored === 0
                     ? "No transactions yet. Press Sync now; a new connection can take a minute to fill in."
                     : "You're all caught up."
                   : tab === "added"
@@ -473,42 +601,6 @@ export function BankFeed({
             )}
           </div>
           {truncated && <p className="text-center text-xs text-muted">Showing the newest {rows.length}. Work through these and the rest will follow.</p>}
-
-          <div className="card p-5">
-            <p className="mb-3 font-display text-base font-bold tracking-tight text-fg">Connected accounts</p>
-            <ul className="space-y-4">
-              {items.map((item) => (
-                <li key={item.id}>
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div>
-                      <p className="text-sm font-medium text-fg">{item.institutionName}</p>
-                      <p className="text-xs text-muted">
-                        {item.lastSyncedAt ? `Last synced ${new Date(item.lastSyncedAt).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}` : "Not synced yet"}
-                      </p>
-                    </div>
-                    <button onClick={() => disconnect(item)} disabled={busy === item.id} className="text-xs font-semibold text-bad-text hover:underline disabled:opacity-50">
-                      Disconnect
-                    </button>
-                  </div>
-                  {item.syncError && <p className="mt-1 text-xs text-bad-text">{item.syncError}</p>}
-                  <ul className="mt-2 space-y-1.5">
-                    {item.accounts.map((a) => (
-                      <li key={a.id}>
-                        <label className="flex items-center gap-2.5 text-sm text-fg">
-                          <input type="checkbox" checked={a.tracked} onChange={(e) => toggleAccount(a.id, e.target.checked)} className="accent-gold-deep" />
-                          <span>
-                            {a.name}
-                            {a.mask && <span className="text-muted"> ··{a.mask}</span>}
-                          </span>
-                          <span className="text-xs text-muted">{a.tracked ? "included" : "left out of the review list"}</span>
-                        </label>
-                      </li>
-                    ))}
-                  </ul>
-                </li>
-              ))}
-            </ul>
-          </div>
 
           {rules.length > 0 && (
             <details className="card px-5 py-4">
