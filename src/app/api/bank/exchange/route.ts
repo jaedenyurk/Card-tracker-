@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { encryptToken } from "@/lib/plaidCrypto";
+import { assertTokenKey, encryptToken } from "@/lib/plaidCrypto";
 import { getPlaid, plaidConfigured, plaidErrorMessage, syncItem } from "@/lib/plaid";
 
 export const dynamic = "force-dynamic";
@@ -15,10 +15,13 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Missing public token" }, { status: 400 });
   }
 
+  let accessToken: string | null = null;
   try {
+    // Before the one-time public token is spent: a bad key must not cost the user a bank login.
+    assertTokenKey();
     const plaid = getPlaid();
     const exchange = await plaid.itemPublicTokenExchange({ public_token: body.publicToken });
-    const accessToken = exchange.data.access_token;
+    accessToken = exchange.data.access_token;
     const institutionName =
       typeof body.institutionName === "string" && body.institutionName.trim() ? body.institutionName.trim() : "Bank";
 
@@ -47,6 +50,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ institutionName, accounts: accounts.data.accounts.length, added: 0, syncError: (e as Error).message });
     }
   } catch (e) {
+    // If the bank was linked but we couldn't save it, release it at Plaid rather than leave it dangling.
+    if (accessToken) await getPlaid().itemRemove({ access_token: accessToken }).catch(() => undefined);
     return NextResponse.json({ error: plaidErrorMessage(e) }, { status: 502 });
   }
 }

@@ -17,6 +17,11 @@ function keyFromEnv(): Buffer {
   return key;
 }
 
+/** Throws a readable error if PLAID_TOKEN_KEY is missing or malformed. Never includes the value. */
+export function assertTokenKey(): void {
+  keyFromEnv();
+}
+
 export function encryptToken(plain: string, key: Buffer = keyFromEnv()): string {
   const iv = randomBytes(12);
   const cipher = createCipheriv("aes-256-gcm", key, iv);

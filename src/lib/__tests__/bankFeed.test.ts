@@ -11,7 +11,7 @@ import {
   type PlaidTxLike,
   type RuleLike,
 } from "../bankFeed";
-import { decryptToken, encryptToken } from "../plaidCrypto";
+import { assertTokenKey, decryptToken, encryptToken } from "../plaidCrypto";
 
 function plaidTx(overrides: Partial<PlaidTxLike> = {}): PlaidTxLike {
   return {
@@ -155,4 +155,22 @@ test("a token can't be decrypted with the wrong key or after tampering", () => {
   parts[3] = Buffer.from("tampered-bytes!").toString("base64");
   assert.throws(() => decryptToken(parts.join(":"), key));
   assert.throws(() => decryptToken("not-a-token", key));
+});
+
+test("assertTokenKey accepts a 32-byte base64 key and rejects anything else without printing it", () => {
+  const before = process.env.PLAID_TOKEN_KEY;
+  try {
+    process.env.PLAID_TOKEN_KEY = randomBytes(32).toString("base64");
+    assert.doesNotThrow(() => assertTokenKey());
+
+    const bad = "access-production-0123456789abcdef";
+    process.env.PLAID_TOKEN_KEY = bad;
+    assert.throws(() => assertTokenKey(), (e: Error) => /32 bytes/.test(e.message) && !e.message.includes(bad));
+
+    delete process.env.PLAID_TOKEN_KEY;
+    assert.throws(() => assertTokenKey(), /not set/);
+  } finally {
+    if (before === undefined) delete process.env.PLAID_TOKEN_KEY;
+    else process.env.PLAID_TOKEN_KEY = before;
+  }
 });

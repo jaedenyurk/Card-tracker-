@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { CountryCode, Products } from "plaid";
 import { getPlaid, plaidConfigured, plaidErrorMessage } from "@/lib/plaid";
+import { assertTokenKey } from "@/lib/plaidCrypto";
 
 export const dynamic = "force-dynamic";
 
@@ -9,6 +10,8 @@ export const dynamic = "force-dynamic";
 export async function POST() {
   if (!plaidConfigured()) return NextResponse.json({ error: "Plaid isn't set up yet" }, { status: 503 });
   try {
+    // Catch a bad encryption key now, before the user signs in to their bank for nothing.
+    assertTokenKey();
     const res = await getPlaid().linkTokenCreate({
       user: { client_user_id: "card-tracker-owner" },
       client_name: "Card Tracker",
