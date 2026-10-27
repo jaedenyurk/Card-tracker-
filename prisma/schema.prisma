@@ -114,6 +114,8 @@ model Expense {
   cardId      String?
   card        Card?    @relation(fields: [cardId], references: [id], onDelete: SetNull)
 
+  bankTransactions BankTransaction[]
+
   @@index([date])
   @@index([category])
 }
@@ -134,6 +136,92 @@ model Revenue {
   cardId      String?
   card        Card?    @relation(fields: [cardId], references: [id], onDelete: SetNull)
 
+  bankTransactions BankTransaction[]
+
   @@index([date])
   @@index([category])
+}
+
+// ---- Bank feed (Plaid) ------------------------------------------------------
+// Bank and credit card transactions pulled in through Plaid. They land in a
+// review inbox first; adding one creates a normal Expense or Revenue row, so
+// everything downstream (dashboard, period filters, P&L) works unchanged.
+
+enum BankTxStatus {
+  NEW      // waiting for review
+  ADDED    // turned into an Expense / Revenue (or linked to an existing one)
+  IGNORED  // not business (personal, or a transfer between own accounts)
+}
+
+// One connected login at a bank or card issuer.
+model PlaidItem {
+  id              String    @id @default(cuid())
+  createdAt       DateTime  @default(now())
+
+  plaidItemId     String    @unique
+  institutionName String
+  accessToken     String    // AES-256-GCM encrypted (see lib/plaidCrypto.ts), never the raw Plaid token
+  cursor          String?   // Plaid transactions/sync cursor: where the last sync stopped
+  lastSyncedAt    DateTime?
+  syncError       String?
+
+  accounts        BankAccount[]
+}
+
+model BankAccount {
+  id             String    @id @default(cuid())
+  plaidAccountId String    @unique
+
+  itemId         String
+  item           PlaidItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  name           String
+  mask           String?   // last 4 digits, as Plaid reports them
+  type           String    // depository, credit, ...
+  tracked        Boolean   @default(true) // untracked accounts (e.g. personal) stay out of the review inbox
+
+  transactions   BankTransaction[]
+
+  @@index([itemId])
+}
+
+model BankTransaction {
+  id                 String       @id @default(cuid())
+  createdAt          DateTime     @default(now())
+
+  plaidTransactionId String       @unique
+
+  accountId          String
+  account            BankAccount  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  date               DateTime
+  name               String       // statement description
+  merchantName       String?      // Plaid's cleaned-up merchant, when it has one
+  amount             Int          // cents; positive = money in, negative = money out
+  plaidCategory      String?      // Plaid's detailed category, e.g. FOOD_AND_DRINK_COFFEE
+
+  status             BankTxStatus @default(NEW)
+  category           String?      // the Expense/Revenue category it was filed under
+
+  expenseId          String?
+  expense            Expense?     @relation(fields: [expenseId], references: [id], onDelete: SetNull)
+  revenueId          String?
+  revenue            Revenue?     @relation(fields: [revenueId], references: [id], onDelete: SetNull)
+
+  @@index([status, date])
+  @@index([accountId])
+}
+
+// "Always file Starbucks as Travel": remembered from the review inbox and used
+// to pre-fill the same merchant next time.
+model BankRule {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+
+  merchantKey String   // normalized merchant name, see lib/bankFeed.ts
+  direction   String   // OUT (money spent) or IN (money received)
+  action      String   // ADD or IGNORE
+  category    String?  // Expense/Revenue category when action is ADD
+
+  @@unique([merchantKey, direction])
 }

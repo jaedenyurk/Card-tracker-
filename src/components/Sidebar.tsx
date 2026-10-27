@@ -10,6 +10,7 @@ const NAV_ITEMS = [
   { href: "/inventory", label: "Inventory", icon: "▤" },
   { href: "/revenue", label: "Revenue", icon: "▲" },
   { href: "/expenses", label: "Expenses", icon: "≡" },
+  { href: "/bank", label: "Bank Feed", icon: "⇄" },
 ];
 
 export function Sidebar() {
