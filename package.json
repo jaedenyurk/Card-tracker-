@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "prisma generate && prisma migrate deploy && next build",
+    "build": "prisma generate && npm run migrate && next build",
+    "migrate": "export PRISMA_SCHEMA_DISABLE_ADVISORY_LOCK=1; prisma migrate deploy || (sleep 8 && prisma migrate deploy)",
     "start": "next start",
     "postinstall": "prisma generate",
     "db:push": "prisma db push",
